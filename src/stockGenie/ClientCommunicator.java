@@ -11,7 +11,7 @@ public class ClientCommunicator extends Thread {
 	Socket socket;
 	ObjectOutputStream oos;
 	ObjectInputStream ois;
-//this secomnd 
+
 	public ClientCommunicator(String ipAddress, int port) {
 		try {
 			socket = new Socket(ipAddress, port);
