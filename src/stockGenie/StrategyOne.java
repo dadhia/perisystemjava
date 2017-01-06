@@ -31,13 +31,18 @@ public class StrategyOne extends Strategy {
 		try {
 			PrintWriter pw = new PrintWriter(new File("StrategyOneResult.txt"));
 			bloomberg.requestStockDetails(BloombergAPICommunicator.Strategies.FUNDAMENTALS_ONE);
+			pw.println("REACHED CHECKPOINT 1");
+			pw.flush();
 			//get all the technical data
 			bloomberg.requestHistoricalPriceData(
 					BloombergAPICommunicator.HistoricalRequest.ALL,
-					"20160105","20170105");
+					"20160105","20170105", pw);
+			pw.println("REACHED CHECKPOINT 2");
+			pw.flush();
 			Core c = new Core();
 			
 			pw.println("****Beginning Strategy One*****");
+			pw.flush();
 			//Price/Tang. Book Value
 			for (Stock s: clientGUI.getStockUniverse().getStocks()) {
 				pw.println("Stock: " + s.companyName + " with ticker " + s.ticker);
