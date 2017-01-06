@@ -25,6 +25,10 @@ import javax.swing.table.DefaultTableModel;
 
 public class ClientGUI extends JPanel{
 
+	public enum Strategy {
+		STRAT_ONE
+	}
+
 	private final int sourceIdentifierID = 1;
 	private final String sourceName = "Peri System";
 	
@@ -173,15 +177,15 @@ public class ClientGUI extends JPanel{
 		runHistoricalTest.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				try {
-					//For now we will test three kinds of requests: high, low, and open for the 2006 calendar year
-					bloomberg.requestHistoricalPriceData(BloombergAPICommunicator.HistoricalRequest.ALL);
-					makeUpdate("Sent all three requests", 0, "PERI");
-				}
-				catch (IOException e) {
-					//show error message
-					JOptionPane.showMessageDialog(thisFrame, "IOE: " + e.getMessage());
-				}
+				StrategyOne strat = new StrategyOne("Strategy 1", bloomberg);
+				strat.execute(thisFrame);
+			}
+		});
+		
+		selectStrategyButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				
 			}
 		});
 	}
@@ -219,13 +223,13 @@ public class ClientGUI extends JPanel{
 		selectIndexButton.setBorder(new EmptyBorder(2, 2, 2, 2));
 		
 		String [] strategies = {
-				"Strategy #1", "Strategy #2", "Strategy #3"
+				"EBITDA-Tang. BVal-A/D//OBV"
 		};
 		strategiesComboBox = new JComboBox<String>(strategies);
 		selectStrategyButton = new JButton("Apply Strategy");
 		selectStrategyButton.setBorder(new EmptyBorder(2, 2, 2, 2));
 
-		runHistoricalTest = new JButton("Hist. Test");
+		runHistoricalTest = new JButton("Test Run");
 		runHistoricalTest.setBorder(new EmptyBorder(2, 2, 2, 2));
 		
 		//add the buttons onto the index panel which will be added to 

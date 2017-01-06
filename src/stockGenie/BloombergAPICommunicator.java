@@ -23,7 +23,7 @@ public class BloombergAPICommunicator {
 	}
 	
 	public enum Strategies {
-		BASIC_INFORMATION
+		BASIC_INFORMATION, FUNDAMENTALS_ONE
 	}
 	
 	public enum HistoricalRequest {
@@ -43,6 +43,18 @@ public class BloombergAPICommunicator {
 			throws IOException, InterruptedException 
 	{
 		this.clientGUI = clientGUI;
+		SessionOptions sessionOptions = new SessionOptions();
+		sessionOptions.setServerHost(ipAddress);
+		sessionOptions.setServerPort(port);
+		session = new Session(sessionOptions);
+		session.start();
+		establishRefDataService();
+		establishHistoricalStudyService();
+		filesOutputted = 0;
+	}
+	
+	public BloombergAPICommunicator(String ipAddress, int port) 
+			throws InterruptedException, IOException {
 		SessionOptions sessionOptions = new SessionOptions();
 		sessionOptions.setServerHost(ipAddress);
 		sessionOptions.setServerPort(port);
@@ -140,7 +152,7 @@ public class BloombergAPICommunicator {
 			clientGUI.getStockUniverse().setTickers(tickers);
 			//after the index members are found, request data for each stock
 			this.requestStockDetails(BloombergAPICommunicator.Strategies.BASIC_INFORMATION);
-			this.requestHistoricalPriceData(BloombergAPICommunicator.HistoricalRequest.ALL);
+			
 			clientGUI.updateTable();//update the table to show the stock tickers
 		}
 	}
@@ -164,6 +176,11 @@ public class BloombergAPICommunicator {
 				request.getElement("fields").appendValue("NAME");
 				request.getElement("fields").appendValue("PE_RATIO");
 				request.getElement("fields").appendValue("LAST_PRICE");
+				break;
+			}
+			case FUNDAMENTALS_ONE: {
+				request.getElement("fields").appendValue("PX_TO_TANG_BV_PER_SH");
+				request.getElement("fields").appendValue("PX_TO_EBITDA");
 				break;
 			}
 		}
@@ -197,11 +214,11 @@ public class BloombergAPICommunicator {
 			int numberOfStocksInMessage = securityDataArray.numValues();
 			//FOR LOOP WILL ITERATE THROUGH ALL THE STOCKS
 			for (int i = 0; i < numberOfStocksInMessage; i++) {
+				Element singleStock = securityDataArray.getValueAsElement(i);
+				int sequenceNumber = singleStock.getElementAsInt32("sequenceNumber");
+				Element fieldData = singleStock.getElement("fieldData");
 				switch (strategy){
 					case BASIC_INFORMATION: {
-						Element singleStock = securityDataArray.getValueAsElement(i);
-						int sequenceNumber = singleStock.getElementAsInt32("sequenceNumber");
-						Element fieldData = singleStock.getElement("fieldData");
 						if(fieldData.hasElement("NAME")) {
 							stocks[sequenceNumber].companyName = fieldData.getElementAsString("NAME");
 						}
@@ -213,13 +230,24 @@ public class BloombergAPICommunicator {
 						}
 						break;
 					}
+					case FUNDAMENTALS_ONE: {
+						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH")) {
+							stocks[sequenceNumber].pTangBV = fieldData.getElementAsFloat64("PX_TO_TANG_BV_PER_SH");
+						}
+						if (fieldData.hasElement("PX_TO_EBITDA")) {
+							stocks[sequenceNumber].pEbitda = fieldData.getElementAsFloat64("PX_TO_EBITDA");
+						}
+						break;
+					}
 				}
 			}
 		}
 	}
 	
 	public void requestHistoricalPriceData(
-			BloombergAPICommunicator.HistoricalRequest requestType) 
+			BloombergAPICommunicator.HistoricalRequest requestType,
+			String startDate,
+			String endDate) 
 			throws IOException {
 		Request request = refDataService.createRequest("HistoricalDataRequest");
 		Stock [] stocks = clientGUI.getStockUniverse().getStocks();
@@ -263,8 +291,8 @@ public class BloombergAPICommunicator {
 		
 		request.set("periodicityAdjustment", "ACTUAL");
 		request.set("periodicitySelection", "DAILY");
-		request.set("startDate", "20060101");
-		request.set("endDate", "20061231");
+		request.set("startDate", startDate);
+		request.set("endDate", endDate);
 		request.set("maxDataPoints", 500);
 		request.set("returnEids", true);
 		session.sendRequest(request, null);

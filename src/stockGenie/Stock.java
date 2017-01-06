@@ -2,6 +2,10 @@ package stockGenie;
 
 public class Stock {
 
+	public enum Status {
+		NO_STATUS, BUY, SELL
+	}
+
 	public String ticker;
 	public String companyName;
 	public double pe;
@@ -12,12 +16,16 @@ public class Stock {
 	public double [] px_close;
 	public double [] volume;
 	public double [] ad;
+	public Status status;
+	
+	public double pEbitda, pTangBV;
 	
 	public Stock() {
 		ticker = "";
 		companyName = "";
 		pe = 0;
 		price = 0;
+		status = Stock.Status.NO_STATUS;
 	}
 	
 	public Object [] retrieveRowData() {
