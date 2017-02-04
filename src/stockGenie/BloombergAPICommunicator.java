@@ -344,22 +344,29 @@ public class BloombergAPICommunicator {
 		
 		//Again, we will build a request, but this time a HistoricalDataRequest
 		
-		Request request = refDataService.createRequest("HistoricalDataRequest");
-		Element securities = request.getElement("securities");
-		for (int i = 0; i < stocks.length; i++) {
-			
-		}
-		while(stocksLeft > 0) {
+		//rather than remove certain stocks from the universe, we will skip over
+		//them when they occur and note that index so the data matches correctly
+		
+		int stocksLeft = stocks.length;
+		int startIndex = 0;
+		while (stocksLeft > 0) {
 			Request request = refDataService.createRequest("HistoricalDataRequest");
-			Element securities = request.getElement("securities");
-			int startIndex = setSize*setsOf50Sent;
+			Element securitiesElement = request.getElement("securities");
+			for (int i = startIndex; i < stocks.length; i++) {
+				stocksLeft--;
+				if (stocks[i].status != Stock.Status.NO_DATA) {
+					securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
+				}
+				else {
+					startIndex = i + 1;	//skip over that stock
+					break;
+				}
+			}
+			Element fieldsElement = request.getElement("fields");
 			
-
-			
-			Element fields = request.getElement("fields");
-			switch(requestType) {
+			switch (requestType) {
 				case PX_OPEN: {
-					fields.appendValue("PX_OPEN");
+					fields.appendValue("PX_OPEN"); 
 					break;
 				}
 				case PX_HIGH: {
@@ -387,45 +394,29 @@ public class BloombergAPICommunicator {
 					break;
 				}
 			}
-			
+			//some basic settings for getting daily data
 			request.set("periodicityAdjustment", "ACTUAL");
 			request.set("periodicitySelection", "DAILY");
 			request.set("startDate", startDate);
 			request.set("endDate", endDate);
 			request.set("maxDataPoints", 10000);
 			request.set("returnEids", true);
-			CorrelationID corrID = new CorrelationID(setsOf50Sent);
+	
+			session.sendRequest(request, null);
 			
-			Request historicalCheck = refDataService.createRequest("HistoricalDataRequest");
-			Element
-			
-			
-			
-			
-			//session.sendRequest(request, corrID);
-			
-			
-			//clientGUI.makeUpdate("SENT REQUEST", startIndex, endDate);
-			
-			int i = 1;
-			boolean continueLoop = true;
-			while (continueLoop) {
+			while (true) {
 				Event event = null;
 				try {
 					event = session.nextEvent();
-					pw.println("Response received " + i);
-					i++;
-					//pw.println(event);
 					readHistoricalResponse(event, stocks, requestType, startIndex, pw);
-					
 					if (event.eventType() == Event.EventType.RESPONSE) {
-						continueLoop = false;
+						break;
 					}
 				} 
 				catch (InterruptedException e) {}
 				catch (FileNotFoundException e) {}
 			}
-		}*/
+		}
 	}
 	
 	private void readHistoricalCheckMessage(Event event, PrintWriter pw, 
