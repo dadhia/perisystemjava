@@ -3,7 +3,7 @@ package stockGenie;
 public class Stock {
 
 	public enum Status {
-		NO_STATUS, BUY, SELL
+		NO_STATUS, BUY, SELL, NO_DATA
 	}
 
 	public String ticker;
@@ -32,8 +32,8 @@ public class Stock {
 		Object [] rowData = new Object[4];
 		rowData[0] = ticker;
 		rowData[1] = companyName;
-		rowData[3] = price;
-		rowData[2] = pe;
+		rowData[2] = price;
+		rowData[3] = pe;
 		return rowData;
 	}
 }

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 import com.bloomberglp.blpapi.CorrelationID;
+import com.bloomberglp.blpapi.Datetime;
 import com.bloomberglp.blpapi.Element;
 import com.bloomberglp.blpapi.Event;
 import com.bloomberglp.blpapi.Message;
@@ -89,6 +90,12 @@ public class BloombergAPICommunicator {
 				sourceIdentifierID, sourceName);
 	}
 	
+	/**
+	 * Sends a simple Reference Data Request to Bloomberg and then
+	 * calls another method to read that response.  After execution,
+	 * the stock universe will be populated with ticker names for that
+	 * index.
+	 */
 	public void getIndexMembers(Index index) throws IOException {
 		Request request = 
 				refDataService.createRequest("ReferenceDataRequest");
@@ -133,6 +140,10 @@ public class BloombergAPICommunicator {
 		}
 	}
 	
+	/**
+	 * Used by the method above (getIndexMembers) to read the full response
+	 * by Bloomberg and populate the stock universe.
+	 */
 	private void readIndexResponse(Event indexResponseEvent) 
 			throws IOException, FileNotFoundException 
 	{
@@ -153,6 +164,9 @@ public class BloombergAPICommunicator {
 			for (int i = 0; i < memberCount; i++) {
 				Element securityName = members.getValueAsElement(i);
 				tickers[i] = securityName.getElementAsString("Member Ticker and Exchange Code");
+				String actualTicker = tickers[i].substring(0, tickers[i].length()-1);
+				actualTicker += "S";
+				tickers[i] = actualTicker;
 			}
 			//make the universe in the GUI and add their tickers
 			clientGUI.createNewStockUniverse(memberCount);
@@ -163,6 +177,7 @@ public class BloombergAPICommunicator {
 			clientGUI.updateTable();//update the table to show the stock tickers
 		}
 	}
+	
 	
 	public void requestStockDetails(BloombergAPICommunicator.Strategies strategy) 
 			throws IOException 
@@ -213,6 +228,7 @@ public class BloombergAPICommunicator {
 			BloombergAPICommunicator.Strategies strategy, 
 			Stock [] stocks) 
 	{
+		
 		MessageIterator iter = event.messageIterator();
 		while(iter.hasNext()) {
 			Message message = iter.next();
@@ -226,6 +242,7 @@ public class BloombergAPICommunicator {
 				Element fieldData = singleStock.getElement("fieldData");
 				switch (strategy){
 					case BASIC_INFORMATION: {
+						
 						if(fieldData.hasElement("NAME")) {
 							stocks[sequenceNumber].companyName = fieldData.getElementAsString("NAME");
 						}
@@ -251,194 +268,111 @@ public class BloombergAPICommunicator {
 		}
 	}
 	
+	/**
+	 * Historical Price Data request.
+	 * @param requestType
+	 * @param startDate
+	 * @param endDate
+	 * @param pw
+	 * @throws IOException
+	 */
 	public void requestHistoricalPriceData(
 			BloombergAPICommunicator.HistoricalRequest requestType,
 			String startDate,
-			String endDate, PrintWriter pw) 
-			throws IOException {
+			String endDate, PrintWriter pw) throws IOException 
+	{
 		
+		//get the stock names
 		Stock [] stocks = clientGUI.getStockUniverse().getStocks();
-		int setSize = 1;
-		//add in all the securities based on the index that was pulled
-		if (stocks.length > setSize) {
-
-			int stocksLeft = stocks.length;
-			int setsOf50Sent = 0;
-			String ticker = null;
-			while(stocksLeft > 0) {
-				pw.println("----- stocks left: " + stocksLeft);
-				pw.flush();
-				Request request = refDataService.createRequest("HistoricalDataRequest");
-				Element securities = request.getElement("securities");
-				int startIndex = setSize*setsOf50Sent;
-				int endIndex = startIndex + setSize;
-				if (stocksLeft > setSize) {
-					
-					pw.println("START: " + startIndex + " :: END: " + endIndex);
-					pw.flush();
-					for (int i = startIndex; i < endIndex; i++)  {
-						securities.appendValue(stocks[i].ticker + " EQUITY");
-						ticker = stocks[i].ticker;
-						pw.println(stocks[i].ticker + " EQUITY");
-						pw.flush();
-					}	
-					stocksLeft -= setSize;
-					setsOf50Sent++;
-					/**
-					if (setsOf50Sent == 45) {
-						try {
-							session.stop();
-						} catch (InterruptedException e1) {}
-						SessionOptions sessionOptions = new SessionOptions();
-						sessionOptions.setServerHost(ipAddress);
-						sessionOptions.setServerPort(port);
-						session = new Session(sessionOptions);
-						try {
-							session.start();
-							establishRefDataService();
-							establishHistoricalStudyService();
-						} catch (InterruptedException e) {}
-					}*/
-				}
-				//Case where there are less than fifty left
-				else {
-					for (int i = startIndex; i < stocks.length; i++)
-						securities.appendValue(stocks[i].ticker + " EQUITY");
-					stocksLeft = 0;
-				}
-				
-
-				
-				Element fields = request.getElement("fields");
-				switch(requestType) {
-					case PX_OPEN: {
-						fields.appendValue("PX_OPEN");
-						break;
-					}
-					case PX_HIGH: {
-						fields.appendValue("PX_HIGH");
-						break;
-					}
-					case PX_LOW: {
-						fields.appendValue("PX_LOW");
-						break;
-					}
-					case PX_CLOSE: {
-						fields.appendValue("PX_CLOSE_1D");
-						break;
-					}
-					case VOLUME: {
-						fields.appendValue("PX_VOLUME");
-						break;
-					}
-					case ALL: {
-						fields.appendValue("PX_OPEN");
-						fields.appendValue("PX_HIGH");
-						fields.appendValue("PX_LOW");
-						fields.appendValue("PX_CLOSE_1D");
-						fields.appendValue("PX_VOLUME");
-						break;
-					}
-				}
-				
-				request.set("periodicityAdjustment", "ACTUAL");
-				request.set("periodicitySelection", "DAILY");
-				request.set("startDate", startDate);
-				request.set("endDate", endDate);
-				request.set("maxDataPoints", 10000);
-				//request.set("returnEids", true);
-				CorrelationID corrID = new CorrelationID(setsOf50Sent);
-				if (ticker.contentEquals("ARNC UN")) {
-					continue;
-				}
-				session.sendRequest(request, corrID);
-				clientGUI.makeUpdate("SENT REQUEST", startIndex, endDate);
-				
-				int i = 1;
-				boolean continueLoop = true;
-				while (continueLoop) {
-					Event event = null;
-					try {
-						event = session.nextEvent();
-						pw.println("Response received " + i);
-						i++;
-						readHistoricalResponse(event, stocks, requestType, startIndex, pw);
-						
-						if (event.eventType() == Event.EventType.RESPONSE) {
-							continueLoop = false;
-						}
-					} 
-					catch (InterruptedException e) {}
-					catch (FileNotFoundException e) {}
-				}
-			}
-		}
-		else {
-			Request request = refDataService.createRequest("HistoricalDataRequest");
-			Element securities = request.getElement("securities");
-			for (int i = 0; i < stocks.length; i++)  {
-				securities.appendValue(stocks[i].ticker + " EQUITY");
-				pw.println(stocks[i].ticker + " EQUITY");
-				pw.flush();
-			}
-				
+		
+		//DEBUG Output
+		pw.println("Building one historical check for the entire stock universe");
+		pw.flush();
+		
+		Request histCheck = refDataService.createRequest("ReferenceDataRequest");
+		
+		Element securities = histCheck.getElement("securities");
+		for (int i = 0; i < stocks.length; i++)
+			securities.appendValue(stocks[i].ticker + " EQUITY");
+		
+		Element fields = histCheck.getElement("fields");
+		fields.appendValue("INTERVAL_START_VALUE_DATE");
 			
-			Element fields = request.getElement("fields");
-			switch(requestType) {
-				case PX_OPEN: {
-					fields.appendValue("PX_OPEN");
-					break;
-				}
-				case PX_HIGH: {
-					fields.appendValue("PX_HIGH");
-					break;
-				}
-				case PX_LOW: {
-					fields.appendValue("PX_LOW");
-					break;
-				}
-				case PX_CLOSE: {
-					fields.appendValue("PX_CLOSE_1D");
-					break;
-				}
-				case VOLUME: {
-					fields.appendValue("PX_VOLUME");
-					break;
-				}
-				case ALL: {
-					fields.appendValue("PX_OPEN");
-					fields.appendValue("PX_HIGH");
-					fields.appendValue("PX_LOW");
-					fields.appendValue("PX_CLOSE_1D");
-					fields.appendValue("PX_VOLUME");
-					break;
-				}
-			}
-			
-			request.set("periodicityAdjustment", "ACTUAL");
-			request.set("periodicitySelection", "DAILY");
-			request.set("startDate", startDate);
-			request.set("endDate", endDate);
-			request.set("maxDataPoints", 1000000);
-			request.set("returnEids", true);
-			session.sendRequest(request, null);
-			
-			int i = 0;
-			while (true) {
-				Event event = null;
-				try {
+		//Overrides
+		Element overrides = histCheck.getElement("overrides");
+		
+		//start date override
+		Element override1 = overrides.appendElement();
+		override1.setElement("fieldId", "START_DATE_OVERRIDE");
+		override1.setElement("value", startDate);
+		
+		//end date override
+		Element override2 = overrides.appendElement();
+		override2.setElement("fieldId", "END_DATE_OVERRIDE");
+		override2.setElement("value", endDate);
+				
+		session.sendRequest(histCheck, null);
+		pw.println("Message sent for all stocks in universe");
+		pw.flush();
+		while (true) {
+			Event event = null;
+			try {
 					event = session.nextEvent();
-					pw.println("NEW RESPONSE " + i);
-					i++;
-					readHistoricalResponse(event, stocks, requestType, 0, pw);
-					if (event.eventType() == Event.EventType.RESPONSE)
+					readHistoricalCheckMessage(event, pw, stocks, startDate);
+					if (event.eventType() == Event.EventType.TIMEOUT) {
+						pw.println("TIMEOUT");
+						pw.flush();
+					}
+					if (event.eventType() == Event.EventType.RESPONSE) {
 						break;
-				} 
-				catch (InterruptedException e) {}
-				catch (FileNotFoundException e) {}
+					}	
+			} catch (InterruptedException e) { 
+				
+			}
+			}
+	}
+	
+	private void readHistoricalCheckMessage(Event event, PrintWriter pw, 
+			Stock [] stocks, String startDateString) 
+	{
+
+		MessageIterator iter = event.messageIterator();
+		while (iter.hasNext()) {
+			Message message = iter.next();
+			Element referenceDataRequest = message.asElement();
+			Element securityDataArray = referenceDataRequest.getElement("securityData");
+			int numberOfStocksInMessage = securityDataArray.numValues();
+			
+			for (int i = 0; i < numberOfStocksInMessage; i++) {
+				Element singleStock = securityDataArray.getValueAsElement(i);
+				int sequenceNumber = singleStock.getElementAsInt32("sequenceNumber");
+				Element fieldData = singleStock.getElement("fieldData");
+				String startDate = fieldData.getElementAsDate("INTERVAL_START_VALUE_DATE").toString();
+				String [] splitted = startDate.split("-");
+				boolean sameDate = true;
+				String [] ourDates = new String[3];
+				ourDates[0] = startDateString.substring(0, 4);
+				ourDates[1] = startDateString.substring(4, 6);
+				ourDates[2] = startDateString.substring(6);
+				for (int j = 0; j < splitted.length; j++) {
+					if (!ourDates[j].contentEquals(splitted[j])) {
+						sameDate = false;
+					}
+				}
+				if(!sameDate) {
+					stocks[sequenceNumber].status = Stock.Status.NO_DATA;
+				}
 			}
 		}
-
+	}
+	
+	private void printMessage(Event event, PrintWriter pw) {
+		MessageIterator msgIter = event.messageIterator();
+		while(msgIter.hasNext()) {
+			Message message = msgIter.next();
+			pw.println(message);
+			pw.flush();
+		}
 	}
 	
 	private void readHistoricalResponse(Event event, Stock [] stocks, BloombergAPICommunicator.HistoricalRequest request,
@@ -454,7 +388,7 @@ public class BloombergAPICommunicator {
 		while (msgIter.hasNext()) {
 
 			Message message = msgIter.next();
-			
+			pw.println(message);
 			
 			Element messageAsElement = message.asElement();
 
@@ -521,3 +455,84 @@ public class BloombergAPICommunicator {
 		
 	}
 }
+		
+		
+		/**
+		while(stocksLeft > 0) {
+			Request request = refDataService.createRequest("HistoricalDataRequest");
+			Element securities = request.getElement("securities");
+			int startIndex = setSize*setsOf50Sent;
+			
+
+			
+			Element fields = request.getElement("fields");
+			switch(requestType) {
+				case PX_OPEN: {
+					fields.appendValue("PX_OPEN");
+					break;
+				}
+				case PX_HIGH: {
+					fields.appendValue("PX_HIGH");
+					break;
+				}
+				case PX_LOW: {
+					fields.appendValue("PX_LOW");
+					break;
+				}
+				case PX_CLOSE: {
+					fields.appendValue("PX_CLOSE_1D");
+					break;
+				}
+				case VOLUME: {
+					fields.appendValue("PX_VOLUME");
+					break;
+				}
+				case ALL: {
+					fields.appendValue("PX_OPEN");
+					fields.appendValue("PX_HIGH");
+					fields.appendValue("PX_LOW");
+					fields.appendValue("PX_CLOSE_1D");
+					fields.appendValue("PX_VOLUME");
+					break;
+				}
+			}
+			
+			request.set("periodicityAdjustment", "ACTUAL");
+			request.set("periodicitySelection", "DAILY");
+			request.set("startDate", startDate);
+			request.set("endDate", endDate);
+			request.set("maxDataPoints", 10000);
+			request.set("returnEids", true);
+			CorrelationID corrID = new CorrelationID(setsOf50Sent);
+			
+			Request historicalCheck = refDataService.createRequest("HistoricalDataRequest");
+			Element
+			
+			
+			
+			
+			//session.sendRequest(request, corrID);
+			
+			
+			//clientGUI.makeUpdate("SENT REQUEST", startIndex, endDate);
+			
+			int i = 1;
+			boolean continueLoop = true;
+			while (continueLoop) {
+				Event event = null;
+				try {
+					event = session.nextEvent();
+					pw.println("Response received " + i);
+					i++;
+					//pw.println(event);
+					readHistoricalResponse(event, stocks, requestType, startIndex, pw);
+					
+					if (event.eventType() == Event.EventType.RESPONSE) {
+						continueLoop = false;
+					}
+				} 
+				catch (InterruptedException e) {}
+				catch (FileNotFoundException e) {}
+			}
+		}*/
+	
