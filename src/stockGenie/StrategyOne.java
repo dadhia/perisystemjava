@@ -36,7 +36,7 @@ public class StrategyOne extends Strategy {
 			//get all the technical data
 			bloomberg.requestHistoricalPriceData(
 					BloombergAPICommunicator.HistoricalRequest.ALL,
-					"20160105","20170105", pw);
+					"20160105","20170203", pw);
 			pw.println("REACHED CHECKPOINT 2");
 			pw.flush();
 			Core c = new Core();
@@ -47,10 +47,15 @@ public class StrategyOne extends Strategy {
 			for (Stock s: clientGUI.getStockUniverse().getStocks()) {
 				pw.println("Stock: " + s.companyName + " with ticker " + s.ticker);
 				pw.flush();
-				if (s.pTangBV <= 5.0) {
+				if (s.status == Stock.Status.NO_DATA) {
+					pw.println("No data available...moving to the next stock.");
+					pw.flush();
+					continue;
+				}
+				if (s.pTangBV <= 5.0 && s.pTangBV >= 0.0) {
 					pw.println("Passed the book value filter");
 					pw.flush();
-					if (s.pEbitda <= 10.0) {
+					if (s.pEbitda <= 10.0 && s.pEbitda >= 0.0) {
 						pw.println("Passed the EBITDA filter");
 						pw.flush();
 						MInteger outBegin65 = new MInteger();
