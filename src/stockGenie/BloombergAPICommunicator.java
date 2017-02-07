@@ -273,13 +273,12 @@ public class BloombergAPICommunicator {
 	 * @param requestType
 	 * @param startDate
 	 * @param endDate
-	 * @param pw
 	 * @throws IOException
 	 */
 	public void requestHistoricalPriceData(
 			BloombergAPICommunicator.HistoricalRequest requestType,
 			String startDate,
-			String endDate, PrintWriter pw) throws IOException 
+			String endDate) throws IOException 
 	{
 		//To send a historical price data request, we first need to check
 		//that bloomberg has enough data to fulfill our request
@@ -289,10 +288,6 @@ public class BloombergAPICommunicator {
 		
 		//get the stock names
 		Stock [] stocks = clientGUI.getStockUniverse().getStocks();
-		
-		//DEBUG Output
-		pw.println("Building one historical check for the entire stock universe");
-		pw.flush();
 		
 		Request histCheck = refDataService.createRequest("ReferenceDataRequest");
 		
@@ -317,17 +312,11 @@ public class BloombergAPICommunicator {
 		override2.setElement("value", endDate);
 				
 		session.sendRequest(histCheck, null);
-		pw.println("Message sent for all stocks in universe");
-		pw.flush();
 		while (true) {
 			Event event = null;
 			try {
 					event = session.nextEvent();
-					readHistoricalCheckMessage(event, pw, stocks, startDate);
-					if (event.eventType() == Event.EventType.TIMEOUT) {
-						pw.println("TIMEOUT");
-						pw.flush();
-					}
+					readHistoricalCheckMessage(event, stocks, startDate);
 					if (event.eventType() == Event.EventType.RESPONSE) {
 						break;
 					}	
@@ -335,7 +324,6 @@ public class BloombergAPICommunicator {
 				
 			}
 		}
-		
 		//At this point, all equities that do not have date will have the
 		//status indicator: NO_DATA
 		
@@ -352,13 +340,14 @@ public class BloombergAPICommunicator {
 		while (stocksLeft > 0) {
 			Request request = refDataService.createRequest("HistoricalDataRequest");
 			Element securitiesElement = request.getElement("securities");
+			int nextStart = 0;
 			for (int i = startIndex; i < stocks.length; i++) {
 				stocksLeft--;
 				if (stocks[i].status != Stock.Status.NO_DATA) {
 					securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
 				}
 				else {
-					startIndex = i + 1;	//skip over that stock
+					nextStart = i + 1;	//skip over that stock
 					break;
 				}
 			}
@@ -366,31 +355,31 @@ public class BloombergAPICommunicator {
 			
 			switch (requestType) {
 				case PX_OPEN: {
-					fields.appendValue("PX_OPEN"); 
+					fieldsElement.appendValue("PX_OPEN"); 
 					break;
 				}
 				case PX_HIGH: {
-					fields.appendValue("PX_HIGH");
+					fieldsElement.appendValue("PX_HIGH");
 					break;
 				}
 				case PX_LOW: {
-					fields.appendValue("PX_LOW");
+					fieldsElement.appendValue("PX_LOW");
 					break;
 				}
 				case PX_CLOSE: {
-					fields.appendValue("PX_CLOSE_1D");
+					fieldsElement.appendValue("PX_CLOSE_1D");
 					break;
 				}
 				case VOLUME: {
-					fields.appendValue("PX_VOLUME");
+					fieldsElement.appendValue("PX_VOLUME");
 					break;
 				}
 				case ALL: {
-					fields.appendValue("PX_OPEN");
-					fields.appendValue("PX_HIGH");
-					fields.appendValue("PX_LOW");
-					fields.appendValue("PX_CLOSE_1D");
-					fields.appendValue("PX_VOLUME");
+					fieldsElement.appendValue("PX_OPEN");
+					fieldsElement.appendValue("PX_HIGH");
+					fieldsElement.appendValue("PX_LOW");
+					fieldsElement.appendValue("PX_CLOSE_1D");
+					fieldsElement.appendValue("PX_VOLUME");
 					break;
 				}
 			}
@@ -403,12 +392,11 @@ public class BloombergAPICommunicator {
 			request.set("returnEids", true);
 	
 			session.sendRequest(request, null);
-			
 			while (true) {
 				Event event = null;
 				try {
 					event = session.nextEvent();
-					readHistoricalResponse(event, stocks, requestType, startIndex, pw);
+					readHistoricalResponse(event, stocks, requestType, startIndex);
 					if (event.eventType() == Event.EventType.RESPONSE) {
 						break;
 					}
@@ -416,11 +404,12 @@ public class BloombergAPICommunicator {
 				catch (InterruptedException e) {}
 				catch (FileNotFoundException e) {}
 			}
+			startIndex = nextStart;
 		}
 	}
 	
-	private void readHistoricalCheckMessage(Event event, PrintWriter pw, 
-			Stock [] stocks, String startDateString) 
+	private void readHistoricalCheckMessage(Event event, Stock [] stocks, 
+											String startDateString) 
 	{
 
 		MessageIterator iter = event.messageIterator();
@@ -463,7 +452,7 @@ public class BloombergAPICommunicator {
 	}
 	
 	private void readHistoricalResponse(Event event, Stock [] stocks, BloombergAPICommunicator.HistoricalRequest request,
-			int startIndex, PrintWriter pw) throws FileNotFoundException {
+			int startIndex) throws FileNotFoundException {
 		//OVERALL MESSAGE : HistoricalDataResponse
 		//----> securityData
 		//----> ----> sequenceNumber
@@ -475,20 +464,12 @@ public class BloombergAPICommunicator {
 		while (msgIter.hasNext()) {
 
 			Message message = msgIter.next();
-			pw.println(message);
-			
 			Element messageAsElement = message.asElement();
-
-			/*
-			pw.println(messageAsElement);
-			pw.flush();*/
-			
 			Element securityDataElement = messageAsElement.getElement("securityData");
 			int sequenceNumber = securityDataElement.getElementAsInt32("sequenceNumber");
 			sequenceNumber += startIndex;
 			Stock stock = stocks[sequenceNumber];
 			Element fieldDataArray = securityDataElement.getElement("fieldData");
-			
 			int numberOfValues = fieldDataArray.numValues();
 			switch (request) {
 				case PX_OPEN: {

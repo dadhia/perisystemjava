@@ -17,6 +17,7 @@ public class Stock {
 	public double [] volume;
 	public double [] ad;
 	public Status status;
+	public double svOne, svTwo, svThree, svFour;
 	
 	public double pEbitda, pTangBV;
 	
@@ -26,6 +27,7 @@ public class Stock {
 		pe = 0;
 		price = 0;
 		status = Stock.Status.NO_STATUS;
+		
 	}
 	
 	public Object [] retrieveRowData() {
