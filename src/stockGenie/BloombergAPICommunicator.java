@@ -248,7 +248,10 @@ public class BloombergAPICommunicator {
 						}
 						if(fieldData.hasElement("PE_RATIO")) {
 							stocks[sequenceNumber].pe = fieldData.getElementAsFloat64("PE_RATIO");
-						}	
+						} 
+						else {
+							stocks[sequenceNumber].pe = Integer.MAX_VALUE;
+						}
 						if(fieldData.hasElement("LAST_PRICE")) {
 							stocks[sequenceNumber].price = fieldData.getElementAsFloat64("LAST_PRICE");
 						}
@@ -258,8 +261,14 @@ public class BloombergAPICommunicator {
 						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH")) {
 							stocks[sequenceNumber].pTangBV = fieldData.getElementAsFloat64("PX_TO_TANG_BV_PER_SH");
 						}
+						else {
+							stocks[sequenceNumber].pTangBV = Integer.MAX_VALUE;
+						}
 						if (fieldData.hasElement("PX_TO_EBITDA")) {
 							stocks[sequenceNumber].pEbitda = fieldData.getElementAsFloat64("PX_TO_EBITDA");
+						}
+						else {
+							stocks[sequenceNumber].pEbitda = Integer.MAX_VALUE;
 						}
 						break;
 					}

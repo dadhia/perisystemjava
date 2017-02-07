@@ -32,13 +32,17 @@ public class StrategyOne extends Strategy {
 	public void execute(ClientGUI clientGUI) {
 		try {
 			PrintWriter pw = new PrintWriter(new File("ErrorLogStratOne.txt"));
+			pw.println("Reached first benchmark");
+			pw.flush();
 			ExcelOutput excel = new ExcelOutput();
 			excel.createSheet("OBV and A/D");
+			pw.println("beginning bb request"); 
+			pw.flush();
 			bloomberg.requestStockDetails(BloombergAPICommunicator.Strategies.FUNDAMENTALS_ONE);
 			//get all the technical data
 			bloomberg.requestHistoricalPriceData(
 					BloombergAPICommunicator.HistoricalRequest.ALL,
-					"20170206","20160205");
+					"20160205","20170206");
 			Core c = new Core();
 			//Price/Tang. Book Value
 			pw.println("Reached checkpoint 1"); pw.flush();
@@ -52,7 +56,7 @@ public class StrategyOne extends Strategy {
 					MInteger outBegin65 = new MInteger();
 					MInteger outLength65 = new MInteger();
 					double [] sma65 = new double[s.px_close.length];
-					RetCode rc65 = c.sma(0, s.px_close.length-1, s.px_close, 65, outBegin65, outLength65, sma65);
+					c.sma(0, s.px_close.length-1, s.px_close, 65, outBegin65, outLength65, sma65);
 					s.svOne = sma65[outLength65.value-1];				
 					MInteger outBegin20 = new MInteger();
 					MInteger outLength20 = new MInteger();
@@ -65,7 +69,7 @@ public class StrategyOne extends Strategy {
 						double [] ad = new double [s.px_close.length];
 						MInteger outBeginAD = new MInteger();
 						MInteger outLengthAD = new MInteger();
-						RetCode rcad = c.ad(0, s.px_close.length-1, s.px_high, s.px_low, s.px_close, s.volume, outBeginAD, outLengthAD, ad);
+						c.ad(0, s.px_close.length-1, s.px_high, s.px_low, s.px_close, s.volume, outBeginAD, outLengthAD, ad);
 						s.svThree = ad[outLengthAD.value-1];
 						MInteger outBeginOBV = new MInteger();
 						MInteger outLengthOBV = new MInteger();
@@ -92,7 +96,7 @@ public class StrategyOne extends Strategy {
 					MInteger outBegin65 = new MInteger();
 					MInteger outLength65 = new MInteger();
 					double [] sma65 = new double[s.px_close.length];
-					RetCode rc65 = c.sma(0, s.px_close.length-1, s.px_close, 65, outBegin65, outLength65, sma65);
+					c.sma(0, s.px_close.length-1, s.px_close, 65, outBegin65, outLength65, sma65);
 					s.svOne = sma65[outLength65.value-1];					
 					//calculate the 20 Day Simple Moving Average (SMA)
 					MInteger outBegin20 = new MInteger();
