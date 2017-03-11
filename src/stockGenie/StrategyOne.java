@@ -31,7 +31,7 @@ public class StrategyOne extends Strategy {
 	@Override
 	public void execute(ClientGUI clientGUI) {
 		try {
-			PrintWriter pw = new PrintWriter(new File("ErrorLogStratOne.txt"));
+			PrintWriter p5w = new PrintWriter(new File("ErrorLogStratOne.txt"));
 			pw.println("Reached first benchmark");
 			pw.flush();
 			ExcelOutput excel = new ExcelOutput();
@@ -65,7 +65,6 @@ public class StrategyOne extends Strategy {
 					//price is less than 20 AND 65 SMAs
 					s.svTwo = sma20[outLength20.value-1];
 					if ((s.price <= s.svTwo) && (s.price <= s.svOne)) {
-							
 						double [] ad = new double [s.px_close.length];
 						MInteger outBeginAD = new MInteger();
 						MInteger outLengthAD = new MInteger();
@@ -81,7 +80,6 @@ public class StrategyOne extends Strategy {
 						if ((s.svThree >= s.svOne) && (s.svThree >= s.svTwo)) {
 							adBullish = true;
 						}
-						
 						if ((s.svFour >= s.svOne) && (s.svFour >= s.svTwo)) {
 								obvBullish = true;		
 						}
