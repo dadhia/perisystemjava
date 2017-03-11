@@ -31,7 +31,7 @@ public class StrategyOne extends Strategy {
 	@Override
 	public void execute(ClientGUI clientGUI) {
 		try {
-			PrintWriter p5w = new PrintWriter(new File("ErrorLogStratOne.txt"));
+			PrintWriter pw = new PrintWriter(new File("ErrorLogStratOne.txt"));
 			pw.println("Reached first benchmark");
 			pw.flush();
 			ExcelOutput excel = new ExcelOutput();

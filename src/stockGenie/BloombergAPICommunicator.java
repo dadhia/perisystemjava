@@ -38,40 +38,36 @@ public class BloombergAPICommunicator {
 	private Service refDataService;
 	private Service histStudyService;
 	private ClientGUI clientGUI;
-	private int filesOutputted;
-	private String ipAddress;
-	private int port;
 	
+	private StockUniverse stockUniverse;
 	
+	/**
+	 * Use this method when using the client GUI.
+	 */
 	public BloombergAPICommunicator(
 			String ipAddress, int port, ClientGUI clientGUI)
 			throws IOException, InterruptedException 
 	{
-		this.ipAddress = ipAddress;
-		this.port = port;
 		this.clientGUI = clientGUI;
-		SessionOptions sessionOptions = new SessionOptions();
-		sessionOptions.setServerHost(ipAddress);
-		sessionOptions.setServerPort(port);
-		session = new Session(sessionOptions);
-		session.start();
+		startSession();
 		establishRefDataService();
 		establishHistoricalStudyService();
-		filesOutputted = 0;
 	}
 	
+	/**
+	 * Use this method when not using the Client GUI.
+	 */
 	public BloombergAPICommunicator(String ipAddress, int port) 
 			throws InterruptedException, IOException {
-		SessionOptions sessionOptions = new SessionOptions();
-		sessionOptions.setServerHost(ipAddress);
-		sessionOptions.setServerPort(port);
-		session = new Session(sessionOptions);
-		session.start();
+		startSession();
 		establishRefDataService();
 		establishHistoricalStudyService();
-		filesOutputted = 0;
 	}
 	
+	/**
+	 * Create a Reference Data Service and store it in the refDataService
+	 * member variable.
+	 */
 	private void establishRefDataService() 
 			throws InterruptedException, IOException 
 	{
@@ -81,6 +77,10 @@ public class BloombergAPICommunicator {
 				sourceIdentifierID, sourceName);
 	}
 	
+	/**
+	 * Create a Historical Study Service and store it in the histStudyService
+	 * member variable.
+	 */
 	private void establishHistoricalStudyService() 
 			throws InterruptedException, IOException 
 	{
@@ -91,14 +91,34 @@ public class BloombergAPICommunicator {
 	}
 	
 	/**
+	 * Starts a session with bloomberg using "localhost" and 8194
+	 * as the default IP address and port, respectively.
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	private void startSession() throws IOException, InterruptedException {
+		//Basic connection to bloomberg
+		SessionOptions sessionOptions = new SessionOptions();
+		sessionOptions.setServerHost("localhost");
+		sessionOptions.setServerPort(8194);
+		session = new Session(sessionOptions);	//start session
+		session.start();
+	}
+	
+	/**
 	 * Sends a simple Reference Data Request to Bloomberg and then
 	 * calls another method to read that response.  After execution,
 	 * the stock universe will be populated with ticker names for that
 	 * index.
 	 */
-	public void getIndexMembers(Index index) throws IOException {
-		Request request = 
-				refDataService.createRequest("ReferenceDataRequest");
+	public StockUniverse getIndexMembers(Index index) throws IOException {
+		Request request = refDataService.createRequest("ReferenceDataRequest");
+		//based on the index requested, we build the request
+		//Bloomberg has predifined these values, so they are basically hard
+		//coded in here
+		//TO ADD AN ADDITIONAL INDEX: simply find the index name
+		//in the terminal and follow the examples shown here to make one more
+		//case statement
 		switch (index)
 		{
 			case DOWJONES: request.getElement("securities").appendValue("INDU INDEX");break;
@@ -120,24 +140,34 @@ public class BloombergAPICommunicator {
 			case CSI300:request.getElement("securities").appendValue("SHSZ300 INDEX");break;
 			case SPASX200:request.getElement("securities").appendValue("AS51 INDEX");break;
 		}
+		//we ask for two things: all of the members of the index, and a count
 		request.getElement("fields").appendValue("INDX_MEMBERS");
 		request.getElement("fields").appendValue("COUNT_INDEX_MEMBERS");
+		//send the request
 		session.sendRequest(request, null);
-		clientGUI.makeUpdate("request for index members sent", sourceIdentifierID, sourceName);
-		
+
+		//wait for a response
 		while (true) {
 			Event event = null;
+			//keep pulling in events
 			try {
 				event = session.nextEvent();
 			} catch (InterruptedException e) {}
+			
+			//the response can potentially be split into multiple events
+			//this one likely comes back in one, however
+			//that event is indicated by the Event Type RESPONSE
 			if(event.eventType() == Event.EventType.RESPONSE) {
-				readIndexResponse(event);
+				readIndexResponse(event);	//this method will build the stock universe!
 				break;
 			}
+			//if we had multiple events than the earlier ones would be
+			//called PARTIAL_RESPONSE by Bloomberg
 			else if (event.eventType() == Event.EventType.PARTIAL_RESPONSE) {
-				readIndexResponse(event);
+				readIndexResponse(event);	//this method builds the stock universe!
 			}
 		}
+		return stockUniverse;
 	}
 	
 	/**
@@ -150,6 +180,7 @@ public class BloombergAPICommunicator {
 		MessageIterator it = indexResponseEvent.messageIterator();
 		while (it.hasNext()) {
 			Message message = it.next();
+			//Field Data has two elements: COUNT_INDEX_MEMBERS and INDX_MEMBERS
 			Element messageAsElement = message.asElement();
 			Element securityDataArray = messageAsElement.getElement("securityData");
 			Element securityData = securityDataArray.getValueAsElement();
@@ -157,33 +188,61 @@ public class BloombergAPICommunicator {
 			
 			//get the number of securities in this specific index
 			int memberCount = fieldData.getElementAsInt32("COUNT_INDEX_MEMBERS");
-			clientGUI.makeUpdate("There are " + memberCount + " members.", sourceIdentifierID, sourceName);
+			//clientGUI.makeUpdate("There are " + memberCount + " members.", sourceIdentifierID, sourceName);
+			
 			//iterate through the list and get all the tickers
 			Element members = fieldData.getElement("INDX_MEMBERS");
 			String [] tickers = new String[memberCount];
 			for (int i = 0; i < memberCount; i++) {
 				Element securityName = members.getValueAsElement(i);
+				//populate each stock with a string of its name
+				//Example: Apple Inc will be AAPL US
+				//later on we append with the "EQUITY" tag, but there is no point in storing that in memory
 				tickers[i] = securityName.getElementAsString("Member Ticker and Exchange Code");
-				String actualTicker = tickers[i].substring(0, tickers[i].length()-1);
-				actualTicker += "S";
-				tickers[i] = actualTicker;
 			}
+			
+			//GUI ONLY CODE
 			//make the universe in the GUI and add their tickers
-			clientGUI.createNewStockUniverse(memberCount);
-			clientGUI.getStockUniverse().setTickers(tickers);
+			if (clientGUI != null) {
+				clientGUI.createNewStockUniverse(memberCount);
+				clientGUI.getStockUniverse().setTickers(tickers);
+			}
+			else {
+				stockUniverse = new StockUniverse(memberCount);
+				stockUniverse.setTickers(tickers);
+			}
+			
 			//after the index members are found, request data for each stock
 			this.requestStockDetails(BloombergAPICommunicator.Strategies.BASIC_INFORMATION);
 			
-			clientGUI.updateTable();//update the table to show the stock tickers
+			//GUI ONLY CODE
+			//update the table to show the stock tickers
+			if (clientGUI != null)
+				clientGUI.updateTable();
+			
 		}
 	}
 	
 	
+	/**
+	 * Method used to request specific details about every stock in the
+	 * stockUniverse.
+	 * @param strategy
+	 * @throws IOException
+	 */
 	public void requestStockDetails(BloombergAPICommunicator.Strategies strategy) 
 			throws IOException 
 	{
+		//make a new reference data request
 		Request request = refDataService.createRequest("ReferenceDataRequest");
-		Stock [] stocks = clientGUI.getStockUniverse().getStocks();
+		Stock [] stocks;
+		if (clientGUI != null)
+			stocks = clientGUI.getStockUniverse().getStocks();
+		else 
+			stocks = stockUniverse.getStocks();
+		
+		//populate the securities element with every stock ticker
+		//append using the "EQUITY" tag
 		Element securitiesElement = request.getElement("securities");
 		for (int i = 0; i < stocks.length; i++) {
 			securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
@@ -200,13 +259,14 @@ public class BloombergAPICommunicator {
 				request.getElement("fields").appendValue("LAST_PRICE");
 				break;
 			}
+			//Fundamentals One: used by StrategyOne/StrategyA (synonymous)
 			case FUNDAMENTALS_ONE: {
 				request.getElement("fields").appendValue("PX_TO_TANG_BV_PER_SH");
 				request.getElement("fields").appendValue("PX_TO_EBITDA");
 				break;
 			}
 		}
-		session.sendRequest(request, null);
+		session.sendRequest(request, null);	//send request
 		
 		while (true) {
 			Event event = null;
