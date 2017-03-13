@@ -44,8 +44,7 @@ public class BloombergAPICommunicator {
 	/**
 	 * Use this method when using the client GUI.
 	 */
-	public BloombergAPICommunicator(
-			String ipAddress, int port, ClientGUI clientGUI)
+	public BloombergAPICommunicator(ClientGUI clientGUI)
 			throws IOException, InterruptedException 
 	{
 		this.clientGUI = clientGUI;
@@ -57,7 +56,7 @@ public class BloombergAPICommunicator {
 	/**
 	 * Use this method when not using the Client GUI.
 	 */
-	public BloombergAPICommunicator(String ipAddress, int port) 
+	public BloombergAPICommunicator() 
 			throws InterruptedException, IOException {
 		startSession();
 		establishRefDataService();
@@ -268,6 +267,8 @@ public class BloombergAPICommunicator {
 		}
 		session.sendRequest(request, null);	//send request
 		
+		//wait for a response
+		//like before, PARTIAL_RESPONSE will come prior to RESPONSE
 		while (true) {
 			Event event = null;
 			try {
@@ -276,7 +277,7 @@ public class BloombergAPICommunicator {
 			
 			if(event.eventType() == Event.EventType.RESPONSE) {
 				readStocksResponse(event, strategy, stocks);
-				break;
+				break;	//leave the loop
 			}
 			else if (event.eventType() == Event.EventType.PARTIAL_RESPONSE) {
 				readStocksResponse(event, strategy, stocks);
@@ -284,25 +285,37 @@ public class BloombergAPICommunicator {
 		}
 	}
 	
+	/**
+	 * Used by request stock details to read the stocks response.
+	 */
 	public void readStocksResponse(Event event, 
 			BloombergAPICommunicator.Strategies strategy, 
 			Stock [] stocks) 
 	{
-		
 		MessageIterator iter = event.messageIterator();
 		while(iter.hasNext()) {
 			Message message = iter.next();
+			//find the security data array which holds details per stock
 			Element referenceDataRequest = message.asElement();
 			Element securityDataArray = referenceDataRequest.getElement("securityData");
+			//count of number of stocks that are in this message
 			int numberOfStocksInMessage = securityDataArray.numValues();
+			
 			//FOR LOOP WILL ITERATE THROUGH ALL THE STOCKS
+			//for every stock in THIS message
 			for (int i = 0; i < numberOfStocksInMessage; i++) {
+				//get the stock
 				Element singleStock = securityDataArray.getValueAsElement(i);
+				//the sequence number matches the stock to the number we have assigned
+				//it in our stock universe
 				int sequenceNumber = singleStock.getElementAsInt32("sequenceNumber");
+				
+				//the field data holds the vital information that was requested for
+				//that particular stock
 				Element fieldData = singleStock.getElement("fieldData");
 				switch (strategy){
+				//Basic Information request: Name, PE_RATIO, LAST_PRICE
 					case BASIC_INFORMATION: {
-						
 						if(fieldData.hasElement("NAME")) {
 							stocks[sequenceNumber].companyName = fieldData.getElementAsString("NAME");
 						}
@@ -310,13 +323,20 @@ public class BloombergAPICommunicator {
 							stocks[sequenceNumber].pe = fieldData.getElementAsFloat64("PE_RATIO");
 						} 
 						else {
-							stocks[sequenceNumber].pe = Integer.MAX_VALUE;
+							stocks[sequenceNumber].pe = Integer.MAX_VALUE; 	
+							//we put max value here to indicate a very high PE 
+							//ratio which would be filtered out
 						}
 						if(fieldData.hasElement("LAST_PRICE")) {
 							stocks[sequenceNumber].price = fieldData.getElementAsFloat64("LAST_PRICE");
 						}
-						break;
+						break;	//Case statement so break
 					}
+					
+					//Fundamentals One: used by Strategy One or Strategy A
+					//Requested info: P/Tang. Book Value; Price/EBITDA
+					//again, use high values (Integer.MAX_VALUE) to indicate a very high ratio
+					//when the 
 					case FUNDAMENTALS_ONE: {
 						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH")) {
 							stocks[sequenceNumber].pTangBV = fieldData.getElementAsFloat64("PX_TO_TANG_BV_PER_SH");
@@ -330,7 +350,7 @@ public class BloombergAPICommunicator {
 						else {
 							stocks[sequenceNumber].pEbitda = Integer.MAX_VALUE;
 						}
-						break;
+						break;	//case statement so break
 					}
 				}
 			}
@@ -339,35 +359,38 @@ public class BloombergAPICommunicator {
 	
 	/**
 	 * Historical Price Data request.
-	 * @param requestType
-	 * @param startDate
-	 * @param endDate
-	 * @throws IOException
 	 */
 	public void requestHistoricalPriceData(
 			BloombergAPICommunicator.HistoricalRequest requestType,
 			String startDate,
 			String endDate) throws IOException 
 	{
+		//get the stock names
+		Stock [] stocks;
+		//GUI vs. non-GUI approach
+		if (clientGUI != null)
+			stocks = clientGUI.getStockUniverse().getStocks();
+		else
+			stocks = stockUniverse.getStocks();
+		
 		//To send a historical price data request, we first need to check
 		//that bloomberg has enough data to fulfill our request
 		
 		//For that, we wend a histCheck, which compares our desired interval start
 		//date to the start date available for bloomberg data
-		
-		//get the stock names
-		Stock [] stocks = clientGUI.getStockUniverse().getStocks();
-		
 		Request histCheck = refDataService.createRequest("ReferenceDataRequest");
 		
+		//fill the securities element with all stock tickers, appending
+		//with the "EQUITY" tag
 		Element securities = histCheck.getElement("securities");
 		for (int i = 0; i < stocks.length; i++)
 			securities.appendValue(stocks[i].ticker + " EQUITY");
 		
+		//use the field INTERVAL_START_VALUE_DATE
 		Element fields = histCheck.getElement("fields");
 		fields.appendValue("INTERVAL_START_VALUE_DATE");
 			
-		//Overrides
+		//get the overrides element
 		Element overrides = histCheck.getElement("overrides");
 		
 		//start date override
@@ -380,15 +403,15 @@ public class BloombergAPICommunicator {
 		override2.setElement("fieldId", "END_DATE_OVERRIDE");
 		override2.setElement("value", endDate);
 				
-		session.sendRequest(histCheck, null);
+		session.sendRequest(histCheck, null);	//send the request
 		while (true) {
 			Event event = null;
 			try {
-					event = session.nextEvent();
-					readHistoricalCheckMessage(event, stocks, startDate);
-					if (event.eventType() == Event.EventType.RESPONSE) {
-						break;
-					}	
+				event = session.nextEvent();
+				readHistoricalCheckMessage(event, stocks, startDate);
+				if (event.eventType() == Event.EventType.RESPONSE) {
+					break;	//only break when the full RESPONSE has been received
+				}	
 			} catch (InterruptedException e) { 
 				
 			}
@@ -404,24 +427,30 @@ public class BloombergAPICommunicator {
 		//rather than remove certain stocks from the universe, we will skip over
 		//them when they occur and note that index so the data matches correctly
 		
-		int stocksLeft = stocks.length;
+		//total number of remaining stocks that we have not requested data for
+		int stocksLeft = stocks.length;	
+		//stock number that we are currently on
 		int startIndex = 0;
-		while (stocksLeft > 0) {
+		
+		while (stocksLeft > 0) {	//while there are stocks left
 			Request request = refDataService.createRequest("HistoricalDataRequest");
 			Element securitiesElement = request.getElement("securities");
 			int nextStart = 0;
+			
 			for (int i = startIndex; i < stocks.length; i++) {
-				stocksLeft--;
-				if (stocks[i].status != Stock.Status.NO_DATA) {
-					securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
-				}
-				else {
+				stocksLeft--;	//move to the next stock
+				if (stocks[i].status == Stock.Status.NO_DATA) {
 					nextStart = i + 1;	//skip over that stock
 					break;
 				}
+				else {
+					securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
+				}
 			}
-			Element fieldsElement = request.getElement("fields");
 			
+			//now move on to the fields we want to request
+			Element fieldsElement = request.getElement("fields");
+			//different kinds of requests so we don't need all the data everytime
 			switch (requestType) {
 				case PX_OPEN: {
 					fieldsElement.appendValue("PX_OPEN"); 
@@ -453,6 +482,7 @@ public class BloombergAPICommunicator {
 				}
 			}
 			//some basic settings for getting daily data
+			//not sure exactly what these do, but they were in the example
 			request.set("periodicityAdjustment", "ACTUAL");
 			request.set("periodicitySelection", "DAILY");
 			request.set("startDate", startDate);
@@ -460,7 +490,8 @@ public class BloombergAPICommunicator {
 			request.set("maxDataPoints", 10000);
 			request.set("returnEids", true);
 	
-			session.sendRequest(request, null);
+			session.sendRequest(request, null);	//send the request
+			//wait for the request
 			while (true) {
 				Event event = null;
 				try {
@@ -473,39 +504,52 @@ public class BloombergAPICommunicator {
 				catch (InterruptedException e) {}
 				catch (FileNotFoundException e) {}
 			}
-			startIndex = nextStart;
+			startIndex = nextStart;	//shift the start index
 		}
 	}
 	
+	/**
+	 * Method used to read a histCheck message. This determines if a
+	 * stock has enough data based on the start and end dates provided
+	 * by the user.
+	 */
 	private void readHistoricalCheckMessage(Event event, Stock [] stocks, 
 											String startDateString) 
 	{
-
 		MessageIterator iter = event.messageIterator();
 		while (iter.hasNext()) {
 			Message message = iter.next();
+			//move to the securityData array
 			Element referenceDataRequest = message.asElement();
 			Element securityDataArray = referenceDataRequest.getElement("securityData");
+			
+			//determine number of stocks in the security data array
 			int numberOfStocksInMessage = securityDataArray.numValues();
 			
+			//for every stock in this message
 			for (int i = 0; i < numberOfStocksInMessage; i++) {
+				//get the stock
 				Element singleStock = securityDataArray.getValueAsElement(i);
+				//get the sequence number which is the number we associate with that stock in the sequence
 				int sequenceNumber = singleStock.getElementAsInt32("sequenceNumber");
+				//the field data element has the information we need--whether the start date is valid
 				Element fieldData = singleStock.getElement("fieldData");
+				//convert the start date into a string
 				String startDate = fieldData.getElementAsDate("INTERVAL_START_VALUE_DATE").toString();
-				String [] splitted = startDate.split("-");
-				boolean sameDate = true;
+				String [] splitted = startDate.split("-");	//split based on "-"
+				//convert our start date into an array as well
 				String [] ourDates = new String[3];
 				ourDates[0] = startDateString.substring(0, 4);
 				ourDates[1] = startDateString.substring(4, 6);
 				ourDates[2] = startDateString.substring(6);
+				
+				//compare the two arrays, if there is not equality for each date, than
+				//this stock does not have enough data in the bloomberg system
 				for (int j = 0; j < splitted.length; j++) {
 					if (!ourDates[j].contentEquals(splitted[j])) {
-						sameDate = false;
+						stocks[sequenceNumber].status = Stock.Status.NO_DATA;
+						break;
 					}
-				}
-				if(!sameDate) {
-					stocks[sequenceNumber].status = Stock.Status.NO_DATA;
 				}
 			}
 		}
@@ -590,6 +634,10 @@ public class BloombergAPICommunicator {
 			}
 		}
 		
+	}
+	
+	public StockUniverse getStockUniverse(){
+		return this.stockUniverse;
 	}
 }
 		
