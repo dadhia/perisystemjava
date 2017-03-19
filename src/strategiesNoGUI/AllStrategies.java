@@ -33,7 +33,7 @@ public class AllStrategies {
 			pw.println("Connected to bloomberg");
 			pw.flush();
 			
-			bloomberg.getIndexMembers(BloombergAPICommunicator.Index.SP500);
+			bloomberg.getIndexMembers(BloombergAPICommunicator.Index.NIKKEI);
 			pw.println("Received index members");
 			pw.flush();
 			
@@ -42,7 +42,7 @@ public class AllStrategies {
 			StrategyB strategyB = new StrategyB(bloomberg);
 			strategyA.run(bloomberg.getStockUniverse(), pw, excel);
 			strategyB.run(bloomberg.getStockUniverse(), pw, excel);
-			excel.writeToFile("results.xls");
+			excel.writeToFile("Nikkei.xls");
 			pw.close();
 		} catch (InterruptedException | IOException e) {
 			return;
