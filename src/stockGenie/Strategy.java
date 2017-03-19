@@ -44,3 +44,4 @@ abstract public class Strategy {
 
 	abstract public void execute(ClientGUI clientGUI);
 }
+

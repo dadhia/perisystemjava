@@ -10,6 +10,7 @@ import com.tictactec.ta.lib.Core;
 import com.tictactec.ta.lib.MInteger;
 import com.tictactec.ta.lib.RetCode;
 
+
 public class StrategyOne extends Strategy {
 
 	/**
@@ -19,6 +20,7 @@ public class StrategyOne extends Strategy {
 	 * P/Tangible Book Value < 5
 	 * P/EBITDA < 10
 	 */
+
 	BloombergAPICommunicator bloomberg;
 	
 	public StrategyOne(String stratName, BloombergAPICommunicator bloomberg){
@@ -42,7 +44,7 @@ public class StrategyOne extends Strategy {
 			//get all the technical data
 			bloomberg.requestHistoricalPriceData(
 					BloombergAPICommunicator.HistoricalRequest.ALL,
-					"20160205","20170206");
+					"20160205","20170206", null);
 			Core c = new Core();
 			//Price/Tang. Book Value
 			pw.println("Reached checkpoint 1"); pw.flush();
@@ -199,3 +201,4 @@ public class StrategyOne extends Strategy {
 		excel.addCell(s.svFour);
 	}
 }
+

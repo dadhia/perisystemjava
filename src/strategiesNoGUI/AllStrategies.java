@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import stockGenie.BloombergAPICommunicator;
+import stockGenie.ExcelOutput;
 import stockGenie.StockUniverse;
 
 /**
@@ -18,18 +19,31 @@ import stockGenie.StockUniverse;
  */
 public class AllStrategies {
 
-	public static void main() {
+	public static void main(String [] args) {
 		try {
-			BloombergAPICommunicator bloomberg = new BloombergAPICommunicator();
-			bloomberg.getIndexMembers(BloombergAPICommunicator.Index.SP500);
 			DateFormat df = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
 			Date dateobj = new Date();
 			
-			PrintWriter pw = new PrintWriter(new File(df.format(dateobj))); 
+			PrintWriter pw = new PrintWriter(new File("devanLog"+ ".txt")); 
 			pw.println("This run was started on: " + df.format(dateobj));
-		
+			pw.flush();
+			pw.println("Trying to connect to bloomberg");
+			pw.flush();
+			BloombergAPICommunicator bloomberg = new BloombergAPICommunicator(pw);
+			pw.println("Connected to bloomberg");
+			pw.flush();
+			
+			bloomberg.getIndexMembers(BloombergAPICommunicator.Index.SP500);
+			pw.println("Received index members");
+			pw.flush();
+			
+			ExcelOutput excel = new ExcelOutput();
 			StrategyA strategyA = new StrategyA(bloomberg);
-			strategyA.run(bloomberg.getStockUniverse(), pw);
+			StrategyB strategyB = new StrategyB(bloomberg);
+			strategyA.run(bloomberg.getStockUniverse(), pw, excel);
+			strategyB.run(bloomberg.getStockUniverse(), pw, excel);
+			excel.writeToFile("results.xls");
+			pw.close();
 		} catch (InterruptedException | IOException e) {
 			return;
 		}

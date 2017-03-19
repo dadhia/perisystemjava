@@ -30,11 +30,13 @@ public class ExcelOutput {
 		createHelp = workbook.getCreationHelper();
 	}
 	
-	public void createSheet(String sheetName) {
+	
+	public Sheet createSheet(String sheetName) {
 		String safeSheetName = WorkbookUtil.createSafeSheetName(sheetName);
 		Sheet sheet = workbook.createSheet(safeSheetName);
 		Integer sheetNumber = sheets.size();
 		sheets.put(sheetNumber, sheet);
+		return sheet;
 	}
 	
 	public void addRow(String sheetName) {

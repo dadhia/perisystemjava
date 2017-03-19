@@ -3,7 +3,6 @@
 
 package apidemo;
 
-
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -23,7 +22,6 @@ import apidemo.util.HtmlButton;
 import apidemo.util.NewLookAndFeel;
 import apidemo.util.NewTabbedPanel;
 import apidemo.util.VerticalPanel;
-import stockGenie.ClientGUI;
 
 import com.ib.controller.ApiConnection.ILogger;
 import com.ib.controller.ApiController;
@@ -37,7 +35,7 @@ public class ApiDemo implements IConnectionHandler {
 	static { NewLookAndFeel.register(); }
 	static ApiDemo INSTANCE = new ApiDemo();
 	
-	private final ClientGUI m_stockGenie = new ClientGUI();
+	//private final ClientGUI m_stockGenie = new ClientGUI();
 	
 	private final JTextArea m_inLog = new JTextArea();
 	private final JTextArea m_outLog = new JTextArea();
@@ -76,7 +74,7 @@ public class ApiDemo implements IConnectionHandler {
 		m_tabbedPanel.addTab( "Combos", m_comboPanel);
 		m_tabbedPanel.addTab( "Contract Info", m_contractInfoPanel);
 		m_tabbedPanel.addTab( "Advisor", m_advisorPanel);
-		m_tabbedPanel.addTab( "Peri", m_stockGenie);
+	//	m_tabbedPanel.addTab( "Peri", m_stockGenie);
 		// m_tabbedPanel.addTab( "Strategy", m_stratPanel); in progress
 			
 		m_msg.setEditable( false);

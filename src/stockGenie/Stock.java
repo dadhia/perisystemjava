@@ -20,6 +20,7 @@ public class Stock {
 	public double svOne, svTwo, svThree, svFour;
 	
 	public double pEbitda, pTangBV;
+	public double sma10, sma20, sma50;
 	
 	public Stock() {
 		ticker = "";

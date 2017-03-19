@@ -51,6 +51,7 @@ public class StockUniverse {
 	 * Accumulation-Distribution function.  This will calculate
 	 * the AD line based on the historical data requested.
 	 */
+	/**
 	public void ad(ClientGUI clientGUI) {
 			for (Stock s: universe) {
 				MInteger outBeginIndex = new MInteger();
@@ -93,5 +94,5 @@ public class StockUniverse {
 					pw.flush();
 				}
 			}
-	}
+	}*/
 }

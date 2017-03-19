@@ -154,7 +154,7 @@ public class ClientGUI extends JPanel{
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				try {
-					bloomberg = new BloombergAPICommunicator("localhost", 8194, thisFrame);
+					bloomberg = new BloombergAPICommunicator(thisFrame);
 					makeUpdate("Established connection to Bloomberg.", sourceIdentifierID, "Peri System");
 				} catch (InterruptedException | IOException e) {
 					makeUpdate("Unable to establish connection to the Bloomberg servers.", 0, "Peri System");
@@ -296,3 +296,4 @@ public class ClientGUI extends JPanel{
 		 stockUniverse.refreshTable(stocksTableModel);
 	}
 }
+
