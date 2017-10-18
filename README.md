@@ -8,8 +8,10 @@ The Peri System is a framework for developing stock trading strategies.  Documen
 This project was mostly worked on in late 2016 and early 2017, but I have taken a step away from it to focus on other things.  I am going to return to it shortly to improve it and add onto it some of the desired behavior present in the "Future" section of this README.
 
 ### Highlights of the Peri System:
-Built in Java
+Built in Java.
+
 Built on top of the Bloomberg API
+
 Built on top of TA-lib
 
 ### Key Goals:
