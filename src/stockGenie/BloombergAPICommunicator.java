@@ -48,8 +48,19 @@ public class BloombergAPICommunicator {
 		VOLUME		//volume
 	}
 	
+	/**
+	 * Strategies
+	 * These are different than the "Strategy" class
+	 * -->perhaps the names are a bit too confusing and should be changed
+	 * The goal of Strategies in BloombergAPICommunicator is to provide an easy way to collect multiple
+	 * data fields for all members of a StockUniverse.
+	 * Proper practice is to add details of what each enumeration will provide so that we can reuse them
+	 * in various strategies that we build.
+	 */
 	public enum Strategies {
-		BASIC_INFORMATION, FUNDAMENTALS_ONE, FUNDAMENTALS_TWO
+		BASIC_INFORMATION,	//Company Name, PE Ratio, and LAST PRICE
+		FUNDAMENTALS_ONE,
+		FUNDAMENTALS_TWO
 	}
 	
 
@@ -237,45 +248,38 @@ public class BloombergAPICommunicator {
 			
 			stockUniverse = new StockUniverse(memberCount);
 			stockUniverse.setTickers(tickers);
-			//after the index members are found, request data for each stock
-			this.requestStockDetails(BloombergAPICommunicator.Strategies.BASIC_INFORMATION);
 		}
 	}
 	
 	
 	/**
-	 * Method used to request specific details about every stock in the
-	 * stockUniverse.
-	 * @param strategy
+	 * Method used to request specific details about every stock in our StockUniverse.
+	 * Call this method after calling getIndexMembers().
+	 * @param strategy BloombergAPICommunicator.Strategies (enum)
 	 * @throws IOException
 	 */
 	public void requestStockDetails(BloombergAPICommunicator.Strategies strategy) 
 			throws IOException 
 	{
-		//make a new reference data request
+		//make a new reference data request -- standard bloomberg syntax
 		Request request = refDataService.createRequest("ReferenceDataRequest");
+		
+		//populate all members of our stock universe
 		Stock [] stocks;
 		stocks = stockUniverse.getStocks();
-		
-		//populate the securities element with every stock ticker
-		//append using the "EQUITY" tag
 		Element securitiesElement = request.getElement("securities");
-		for (int i = 0; i < stocks.length; i++) {
+		for (int i = 0; i < stocks.length; i++)
 			securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
-		}
 		
+		//Based on the strategy that was selected, we simply add the fields we want
+		//ADD MORE STRATEGIES HERE
 		switch (strategy) {
-			//Basic Information: a simple request that will fill in our table
-			//Company Name, PE Ratio, and the current price of the security
-			//This will be called immediately after all index members are found
-			//and the user will not call it, other updates may REFRESH these values, however
 			case BASIC_INFORMATION: {
 				request.getElement("fields").appendValue("NAME");
 				request.getElement("fields").appendValue("PE_RATIO");
 				request.getElement("fields").appendValue("LAST_PRICE");
 				break;
 			}
-			//Fundamentals One: used by StrategyOne/StrategyA (synonymous)
 			case FUNDAMENTALS_ONE: {
 				request.getElement("fields").appendValue("PX_TO_TANG_BV_PER_SH");
 				request.getElement("fields").appendValue("PX_TO_EBITDA");
@@ -309,12 +313,12 @@ public class BloombergAPICommunicator {
 		}
 	}
 	
+	
 	/**
 	 * Used by request stock details to read the stocks response.
 	 */
-	public void readStocksResponse(Event event, 
-			BloombergAPICommunicator.Strategies strategy, 
-			Stock [] stocks) 
+	public void readStocksResponse(Event event, BloombergAPICommunicator.Strategies strategy, 
+									Stock [] stocks) 
 	{
 		MessageIterator iter = event.messageIterator();
 		while(iter.hasNext()) {
@@ -338,67 +342,43 @@ public class BloombergAPICommunicator {
 				//that particular stock
 				Element fieldData = singleStock.getElement("fieldData");
 				switch (strategy){
-				//Basic Information request: Name, PE_RATIO, LAST_PRICE
 					case BASIC_INFORMATION: {
-						if(fieldData.hasElement("NAME")) {
+						if (fieldData.hasElement("NAME"))
 							stocks[sequenceNumber].companyName = fieldData.getElementAsString("NAME");
-						}
-						if(fieldData.hasElement("PE_RATIO")) {
+						if (fieldData.hasElement("PE_RATIO"))
 							stocks[sequenceNumber].pe = fieldData.getElementAsFloat64("PE_RATIO");
-						} 
-						else {
-							stocks[sequenceNumber].pe = Integer.MAX_VALUE; 	
-							//we put max value here to indicate a very high PE 
-							//ratio which would be filtered out
-						}
-						if(fieldData.hasElement("LAST_PRICE")) {
+						else 
+							stocks[sequenceNumber].pe = Integer.MAX_VALUE; 	// No P/E so put MAX VALUE
+						if (fieldData.hasElement("LAST_PRICE"))
 							stocks[sequenceNumber].price = fieldData.getElementAsFloat64("LAST_PRICE");
-						}
-						break;	//Case statement so break
-					}
-					
-					//Fundamentals One: used by Strategy One or Strategy A
-					//Requested info: P/Tang. Book Value; Price/EBITDA
-					//again, use high values (Integer.MAX_VALUE) to indicate a very high ratio
-					//when the 
+						break;
+					} 
 					case FUNDAMENTALS_ONE: {
-						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH")) {
+						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH"))
 							stocks[sequenceNumber].pTangBV = fieldData.getElementAsFloat64("PX_TO_TANG_BV_PER_SH");
-						}
-						else {
+						else
 							stocks[sequenceNumber].pTangBV = Integer.MAX_VALUE;
-						}
-						if (fieldData.hasElement("PX_TO_EBITDA")) {
+						if (fieldData.hasElement("PX_TO_EBITDA"))
 							stocks[sequenceNumber].pEbitda = fieldData.getElementAsFloat64("PX_TO_EBITDA");
-						}
-						else {
+						else
 							stocks[sequenceNumber].pEbitda = Integer.MAX_VALUE;
-						}
-						break;	//case statement so break
+						break;
 					}
 					case FUNDAMENTALS_TWO: {
-						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH")) {
+						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH"))
 							stocks[sequenceNumber].pTangBV = fieldData.getElementAsFloat64("PX_TO_TANG_BV_PER_SH");
-						}
-						else {
+						else
 							stocks[sequenceNumber].pTangBV = Integer.MAX_VALUE;
-						}
-						if (fieldData.hasElement("PX_TO_EBITDA")) {
+						if (fieldData.hasElement("PX_TO_EBITDA"))
 							stocks[sequenceNumber].pEbitda = fieldData.getElementAsFloat64("PX_TO_EBITDA");
-						}
-						else {
+						else
 							stocks[sequenceNumber].pEbitda = Integer.MAX_VALUE;
-						}
-						if (fieldData.hasElement("MOV_AVG_10D")) {
+						if (fieldData.hasElement("MOV_AVG_10D"))
 							stocks[sequenceNumber].sma10 = fieldData.getElementAsFloat64("MOV_AVG_10D");
-						}
-	
-						if (fieldData.hasElement("MOV_AVG_20D")) {
+						if (fieldData.hasElement("MOV_AVG_20D"))
 							stocks[sequenceNumber].sma20 = fieldData.getElementAsFloat64("MOV_AVG_20D");
-						}	
-						if (fieldData.hasElement("MOV_AVG_50D")) {
+						if (fieldData.hasElement("MOV_AVG_50D"))
 							stocks[sequenceNumber].sma50 = fieldData.getElementAsFloat64("MOV_AVG_50D");
-						}
 					}
 				}
 			}
