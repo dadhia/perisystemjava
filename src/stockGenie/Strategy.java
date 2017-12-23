@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Timestamp;
 
-import com.ib.controller.ApiController.IFundamentalsHandler;
-
 abstract public class Strategy {
 
 	protected String stratName;
