@@ -1,12 +1,8 @@
 package stockGenie;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
-
-import com.bloomberglp.blpapi.CorrelationID;
-import com.bloomberglp.blpapi.Datetime;
 import com.bloomberglp.blpapi.Element;
 import com.bloomberglp.blpapi.Event;
 import com.bloomberglp.blpapi.Message;
@@ -16,39 +12,57 @@ import com.bloomberglp.blpapi.Session;
 import com.bloomberglp.blpapi.SessionOptions;
 import com.bloomberglp.blpapi.MessageIterator;
 
+
+/**
+ * Class BloombergAPICommunicator.
+ * This class is the core framework used by strategies to communicate with
+ * Bloomberg market data.
+ */
 public class BloombergAPICommunicator {
 	
+	//private member variables used for logging functionality
+	private final int sourceIdentifierID = 2;
+	private final String sourceName = "Bloomberg API";
+	//private member variables to maintain communication with Bloomberg
+	private Session session;
+	private Service refDataService;
+	private Service histStudyService;
+	
+	private ClientGUI clientGUI;
+	private StockUniverse stockUniverse;
+	
+	//Various indices that can be called from Bloomberg
 	public enum Index {
-		DOWJONES, SP500, NASDAQ, SPTSX, MEXIPC, IBOVESPA, 
+		DOWJONES,SP500, NASDAQ, SPTSX, MEXIPC, IBOVESPA, 
 		EUROSTOXX, FTSE100, CAC40, DAX, IBEX35, FTSEMIB, 
 		OMXSTKH30, SWISSMKT, NIKKEI, HANGSENG, CSI300, SPASX200
+	}
+	
+	//Various fields that can be called for a Bloomberg "Historical Request#
+	public enum HistoricalRequest {
+		ALL,		//All five fields below 
+		PX_OPEN,	//open price
+		PX_HIGH,	//high price
+		PX_LOW,		//low price
+		PX_CLOSE,	//close price
+		VOLUME		//volume
 	}
 	
 	public enum Strategies {
 		BASIC_INFORMATION, FUNDAMENTALS_ONE, FUNDAMENTALS_TWO
 	}
 	
-	public enum HistoricalRequest {
-		ALL, PX_OPEN, PX_HIGH, PX_LOW, PX_CLOSE, VOLUME
-	}
-	
-	private final int sourceIdentifierID = 2;
-	private final String sourceName = "Bloomberg API";
-	private Session session;
-	private Service refDataService;
-	private Service histStudyService;
-	//private ClientGUI clientGUI;
-	
-	private StockUniverse stockUniverse;
-	
-	/**
-	 * Use this method when using the client GUI.
-	 */
 
+	/**
+	 * Constructor
+	 * @param clientGUI ClientGUI
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
 	public BloombergAPICommunicator(ClientGUI clientGUI)
 			throws IOException, InterruptedException 
 	{
-		//this.clientGUI = clientGUI;
+		this.clientGUI = clientGUI;
 		startSession();
 		establishRefDataService();
 		establishHistoricalStudyService();
@@ -56,20 +70,28 @@ public class BloombergAPICommunicator {
 
 	
 	/**
-	 * Use this method when not using the Client GUI.
+	 * Constructor.
+	 * @param pw PrintWriter
+	 * @throws InterruptedException
+	 * @throws IOException
 	 */
 	public BloombergAPICommunicator(PrintWriter pw) 
-			throws InterruptedException, IOException {
+			throws InterruptedException, IOException
+	{
+		//Start a session
 		startSession();
 		pw.println("Session started");
 		pw.flush();
+		//Start Reference Data Service
 		establishRefDataService();
 		pw.println("Ref Data Svc started");
 		pw.flush();
+		//Start Historical Study Service
 		establishHistoricalStudyService();
 		pw.println("Hist study svc started");
 		pw.flush();
 	}
+	
 	
 	/**
 	 * Create a Reference Data Service and store it in the refDataService
@@ -82,6 +104,7 @@ public class BloombergAPICommunicator {
 		refDataService = session.getService("//blp/refdata");
 	}
 	
+	
 	/**
 	 * Create a Historical Study Service and store it in the histStudyService
 	 * member variable.
@@ -92,6 +115,7 @@ public class BloombergAPICommunicator {
 		session.openService("//blp/tasvc");
 		histStudyService = session.getService("//blp/tasvc");
 	}
+	
 	
 	/**
 	 * Starts a session with bloomberg using "localhost" and 8194
@@ -107,21 +131,55 @@ public class BloombergAPICommunicator {
 		session = new Session(sessionOptions);	//start session
 		session.start();
 	}
+
 	
 	/**
-	 * Sends a simple Reference Data Request to Bloomberg and then
-	 * calls another method to read that response.  After execution,
-	 * the stock universe will be populated with ticker names for that
-	 * index.
+	 * Provides a StockUniverse with all members of an index.
+	 * @param index Index
+	 * @return StockUniverse
+	 * @throws IOException
 	 */
 	public StockUniverse getIndexMembers(Index index) throws IOException {
+		//Create a request -- just basic bloomberg syntax
 		Request request = refDataService.createRequest("ReferenceDataRequest");
-		//based on the index requested, we build the request
-		//Bloomberg has predifined these values, so they are basically hard
-		//coded in here
-		//TO ADD AN ADDITIONAL INDEX: simply find the index name
-		//in the terminal and follow the examples shown here to make one more
-		//case statement
+		//add the index
+		addIndexAsSecurity(index, request);
+		//we ask for two things: all of the members of the index, and a count
+		request.getElement("fields").appendValue("INDX_MEMBERS");
+		request.getElement("fields").appendValue("COUNT_INDEX_MEMBERS");
+		//send the request
+		session.sendRequest(request, null);
+
+		//wait for a response
+		while (true) {
+			Event event = null;
+			try {
+				event = session.nextEvent();	//keep pulling events
+			} catch (InterruptedException e) {}
+			
+			//the response can potentially be split into multiple events
+			//final event is indicated by the Event Type RESPONSE
+			if(event.eventType() == Event.EventType.RESPONSE) {
+				readIndexResponse(event);	//build the stock universe
+				break;
+			}
+			
+			//if we had multiple events than the earlier ones would be
+			//called PARTIAL_RESPONSE by Bloomberg
+			else if (event.eventType() == Event.EventType.PARTIAL_RESPONSE) {
+				readIndexResponse(event);	//build the stock universe
+			}
+		}
+		return stockUniverse;
+	}
+	
+	
+	/**
+	 * Add an index to the securities element of the request.
+	 * @param index Index
+	 * @param request Request
+	 */
+	private void addIndexAsSecurity(Index index, Request request) {
 		switch (index)
 		{
 			case DOWJONES: request.getElement("securities").appendValue("INDU INDEX");break;
@@ -143,39 +201,12 @@ public class BloombergAPICommunicator {
 			case CSI300:request.getElement("securities").appendValue("SHSZ300 INDEX");break;
 			case SPASX200:request.getElement("securities").appendValue("AS51 INDEX");break;
 		}
-		//we ask for two things: all of the members of the index, and a count
-		request.getElement("fields").appendValue("INDX_MEMBERS");
-		request.getElement("fields").appendValue("COUNT_INDEX_MEMBERS");
-		//send the request
-		session.sendRequest(request, null);
-
-		//wait for a response
-		while (true) {
-			Event event = null;
-			//keep pulling in events
-			try {
-				event = session.nextEvent();
-			} catch (InterruptedException e) {}
-			
-			//the response can potentially be split into multiple events
-			//this one likely comes back in one, however
-			//that event is indicated by the Event Type RESPONSE
-			if(event.eventType() == Event.EventType.RESPONSE) {
-				readIndexResponse(event);	//this method will build the stock universe!
-				break;
-			}
-			//if we had multiple events than the earlier ones would be
-			//called PARTIAL_RESPONSE by Bloomberg
-			else if (event.eventType() == Event.EventType.PARTIAL_RESPONSE) {
-				readIndexResponse(event);	//this method builds the stock universe!
-			}
-		}
-		return stockUniverse;
 	}
 	
+	
 	/**
-	 * Used by the method above (getIndexMembers) to read the full response
-	 * by Bloomberg and populate the stock universe.
+	 * Used by getIndexMembers() to read the full response and populate the stock universe.
+	 * @param indexResponseEvent Event
 	 */
 	private void readIndexResponse(Event indexResponseEvent) 
 			throws IOException, FileNotFoundException 
@@ -206,11 +237,8 @@ public class BloombergAPICommunicator {
 			
 			stockUniverse = new StockUniverse(memberCount);
 			stockUniverse.setTickers(tickers);
-			
-			
 			//after the index members are found, request data for each stock
 			this.requestStockDetails(BloombergAPICommunicator.Strategies.BASIC_INFORMATION);
-
 		}
 	}
 	
