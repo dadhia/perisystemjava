@@ -1,4 +1,4 @@
-package stockGenie;
+package TBD;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -22,6 +22,11 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
+
+import stockGenie.BloombergAPICommunicator;
+import stockGenie.StockUniverse;
+import stockGenie.StrategyOne;
+import stockGenie.BloombergAPICommunicator.Index;
 
 public class ClientGUI extends JPanel{
 

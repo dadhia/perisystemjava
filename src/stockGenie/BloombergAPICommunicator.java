@@ -10,6 +10,9 @@ import com.bloomberglp.blpapi.Request;
 import com.bloomberglp.blpapi.Service;
 import com.bloomberglp.blpapi.Session;
 import com.bloomberglp.blpapi.SessionOptions;
+
+import TBD.ClientGUI;
+
 import com.bloomberglp.blpapi.MessageIterator;
 
 

@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.sql.Timestamp;
 
+import TBD.ClientGUI;
+
 /**
  * Abstract class used for implementing a simple strategy to filter stocks.
  */
