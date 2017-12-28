@@ -11,6 +11,8 @@ import com.tictactec.ta.lib.MInteger;
 import com.tictactec.ta.lib.RetCode;
 
 import TBD.ClientGUI;
+import data.BloombergAPICommunicator;
+import data.Stock;
 
 
 public class StrategyOne extends Strategy {

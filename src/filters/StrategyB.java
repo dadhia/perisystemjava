@@ -5,10 +5,10 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Date;
 
-import stockGenie.BloombergAPICommunicator;
+import data.BloombergAPICommunicator;
+import data.Stock;
+import data.StockUniverse;
 import stockGenie.ExcelOutput;
-import stockGenie.Stock;
-import stockGenie.StockUniverse;
 
 //Strategy B is the moving average cross:
 //if the 10 day average is higher than 20 day average, but less than 50 day
@@ -21,7 +21,7 @@ import stockGenie.StockUniverse;
 //We will also want price/EBITDA and price/Tang BV
 //These fields will constitute FUNDAMENTALS_TWO in the BloombergAPICommunicator
 //enumeration so look to that class for more information
-public class StrategyB extends StrategyAbstractClass {
+public class StrategyB extends Filter {
 
 	public StrategyB(BloombergAPICommunicator bloomberg) {
 		super(bloomberg);

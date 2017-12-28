@@ -6,6 +6,9 @@ import java.io.PrintWriter;
 import java.sql.Timestamp;
 
 import TBD.ClientGUI;
+import data.BloombergAPICommunicator;
+import data.Stock;
+import data.StockUniverse;
 
 /**
  * Abstract class used for implementing a simple strategy to filter stocks.

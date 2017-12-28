@@ -10,12 +10,13 @@ import java.util.Calendar;
 import java.util.Date;
 import com.tictactec.ta.lib.Core;
 import com.tictactec.ta.lib.MInteger;
-import stockGenie.BloombergAPICommunicator;
-import stockGenie.ExcelOutput;
-import stockGenie.Stock;
-import stockGenie.StockUniverse;
 
-public class StrategyA extends StrategyAbstractClass{
+import data.BloombergAPICommunicator;
+import data.Stock;
+import data.StockUniverse;
+import stockGenie.ExcelOutput;
+
+public class StrategyA extends Filter{
 
 	public StrategyA(BloombergAPICommunicator bloomberg) {
 		super(bloomberg);
@@ -27,7 +28,13 @@ public class StrategyA extends StrategyAbstractClass{
 			pw.println("Strategy One");
 			pw.println("Requesting FUNDAMENTALS_ONE from Bloomberg"); 
 			pw.flush();
-			bloomberg.requestStockDetails(BloombergAPICommunicator.Strategies.FUNDAMENTALS_ONE);
+			
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.NAME);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PE_RATIO);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.LAST_PX);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
+			
 			//get all the technical data
 			pw.println("Received FUNDAMENTALS_ONE from Bloomberg");
 			pw.println("Requesting historical price details (ALL)");
@@ -61,6 +68,7 @@ public class StrategyA extends StrategyAbstractClass{
 			
 			pw.println("The start date is: " + startDate + ", which is a " + calendar.get(Calendar.DAY_OF_WEEK));
 			pw.flush();
+			
 			bloomberg.requestHistoricalPriceData(
 					BloombergAPICommunicator.HistoricalRequest.ALL,
 					startDate,endDate, pw);
@@ -81,9 +89,9 @@ public class StrategyA extends StrategyAbstractClass{
 					noData.add(s);
 					continue;
 				}
-					
-				
-				if ((s.pTangBV <= 5.0 && s.pTangBV >= 0.0) && (s.pEbitda <= 10.0 && s.pEbitda >= 0.0)) 
+				double tangBV = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+				double ebitda = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
+				if ( tangBV <= 5.0 && ebitda <= 10.0) 
 				{
 					//calculate 65 day SMA
 					MInteger outBegin65 = new MInteger();
@@ -129,7 +137,7 @@ public class StrategyA extends StrategyAbstractClass{
 							
 					}
 				}
-				else if ((s.pEbitda > 10.0 || s.pEbitda < 0) && (s.pTangBV > 10.0 || s.pTangBV < 0))
+				else if ((s.pEbitda > 10.0 || s.pEbitda < 0) && (s. > 10.0 || s. < 0))
 				{
 						
 					//calculate the 65 Day Simple Moving Average (SMA)
@@ -233,7 +241,7 @@ public class StrategyA extends StrategyAbstractClass{
 		excel.addRow(0);
 		excel.addCell(s.ticker);
 		excel.addCell(s.price);
-		excel.addCell(s.pTangBV);
+		excel.addCell(s.);
 		excel.addCell(s.pEbitda);
 		excel.addCell(s.svOne);
 		excel.addCell(s.svTwo);

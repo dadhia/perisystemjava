@@ -2,15 +2,15 @@ package filters;
 
 import java.io.PrintWriter;
 import java.util.Date;
-import stockGenie.BloombergAPICommunicator;
+import data.BloombergAPICommunicator;
+import data.StockUniverse;
 import stockGenie.ExcelOutput;
-import stockGenie.StockUniverse;
 
 /**
  * Abstract class for all strategies.
  * @author akash
  */
-abstract public class StrategyAbstractClass {
+abstract public class Filter {
 
 	protected BloombergAPICommunicator bloomberg;
 	protected Order [] orderList;
@@ -19,7 +19,7 @@ abstract public class StrategyAbstractClass {
 	 * Constructor
 	 * @param bloomberg BloombergAPICommunicator
 	 */
-	public StrategyAbstractClass(BloombergAPICommunicator bloomberg) {
+	public Filter(BloombergAPICommunicator bloomberg) {
 		this.bloomberg = bloomberg;
 	}
 	
@@ -57,8 +57,8 @@ abstract public class StrategyAbstractClass {
 	 * @param pw PrintWriter
 	 * @param excel ExcelOutput
 	 */
-	public static void runMultiple(StrategyAbstractClass[] strategyArray, StockUniverse stocks, PrintWriter pw, ExcelOutput excel) {
-		for (StrategyAbstractClass strat: strategyArray) {
+	public static void runMultiple(Filter[] strategyArray, StockUniverse stocks, PrintWriter pw, ExcelOutput excel) {
+		for (Filter strat: strategyArray) {
 			strat.run(stocks, pw, excel);
 			strat.printOrders(pw);
 		}
@@ -69,7 +69,7 @@ abstract public class StrategyAbstractClass {
 	 * @param args
 	 */
 	public static void main(String [] args) {
-		StrategyAbstractClass testStrategy = new StrategyAbstractClass(null) {
+		Filter testFilter = new Filter(null) {
 			@Override
 			public void run(StockUniverse stocks, PrintWriter pw, ExcelOutput excel) {
 				this.orderList = new Order[4];
@@ -79,9 +79,9 @@ abstract public class StrategyAbstractClass {
 				orderList[3] = new Order(Order.Action.SELL, 400, "ZZZ", "NYSE", 99.99, new Date(System.currentTimeMillis()));
 			}
 		};
-		testStrategy.run(null, null, null);
+		testFilter.run(null, null, null);
 		PrintWriter pw = new PrintWriter(System.out);
-		testStrategy.printOrders(pw);
+		testFilter.printOrders(pw);
 		pw.close();
 	}
 }

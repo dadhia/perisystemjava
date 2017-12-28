@@ -7,9 +7,9 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import stockGenie.BloombergAPICommunicator;
+import data.BloombergAPICommunicator;
+import data.StockUniverse;
 import stockGenie.ExcelOutput;
-import stockGenie.StockUniverse;
 
 /**
  * Class to run all strategies and deliver one combined excel report.
