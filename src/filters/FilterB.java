@@ -21,9 +21,9 @@ import stockGenie.ExcelOutput;
 //We will also want price/EBITDA and price/Tang BV
 //These fields will constitute FUNDAMENTALS_TWO in the BloombergAPICommunicator
 //enumeration so look to that class for more information
-public class StrategyB extends Filter {
+public class FilterB extends Filter {
 
-	public StrategyB(BloombergAPICommunicator bloomberg) {
+	public FilterB(BloombergAPICommunicator bloomberg) {
 		super(bloomberg);
 	}
 
@@ -34,21 +34,33 @@ public class StrategyB extends Filter {
 			for (Stock s: stocks.getStocks()) {
 				s.status = Stock.Status.NO_STATUS;
 			}
-			bloomberg.requestStockDetails(BloombergAPICommunicator.Strategies.FUNDAMENTALS_TWO);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.LAST_PX);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.MOV_AVG_50D);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.MOV_AVG_20D);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.MOV_AVG_10D);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
 			excel.createSheet("Moving Averages");
 			ArrayList<Stock> buyList = new ArrayList<Stock>();
 			ArrayList<Stock> sellList = new ArrayList<Stock>();
 			ArrayList<Stock> noData = new ArrayList<Stock>();
 			for (Stock s: stocks.getStocks()) {
+				double price, sma50, sma20, sma10, tangBV, ebitda;
+				price = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.LAST_PX);
+				sma50 = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.MOV_AVG_50D);
+				sma20 = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.MOV_AVG_20D);
+				sma10 = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.MOV_AVG_10D);
+				tangBV = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+				ebitda = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
 				if (s.status == Stock.Status.NO_DATA) {
 					noData.add(s);
 				}
-				else if ((s.price < s.sma50) && (s.sma20 < s.sma50)) {
-					if ((s.pTangBV > 5.0) && (s.pEbitda > 10.0))
+				else if (price < sma50 && sma20 < sma50) {
+					if (tangBV > 5.0 && ebitda > 10.0)
 						sellList.add(s);
 				}
-				else if ((s.sma10 > s.sma10) && (s.sma20 < s.sma50)) {
-					if ((s.pTangBV <= 5.0) && (s.pEbitda <= 10.0))
+				else if (sma10 > sma20 && sma20 < sma50) {
+					if (tangBV <= 5.0 && ebitda <= 10.0)
 						buyList.add(s);
 				}
 			}
@@ -99,11 +111,18 @@ public class StrategyB extends Filter {
 	private void printStockDetails(ExcelOutput excel, Stock s) {
 		excel.addRow(0);
 		excel.addCell(s.ticker);
-		excel.addCell(s.price);
-		excel.addCell(s.pTangBV);
-		excel.addCell(s.pEbitda);
-		excel.addCell(s.sma10);
-		excel.addCell(s.sma20);
-		excel.addCell(s.sma50);
+		double price, tangBV, ebitda, sma10, sma20, sma50;
+		price = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.LAST_PX);
+		tangBV = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+		ebitda = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
+		sma10 = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.MOV_AVG_10D);
+		sma20 = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.MOV_AVG_20D);
+		sma50 = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.MOV_AVG_50D);
+		excel.addCell(price);
+		excel.addCell(tangBV);
+		excel.addCell(ebitda);
+		excel.addCell(sma10);
+		excel.addCell(sma20);
+		excel.addCell(sma50);
 	}
 }
