@@ -1,6 +1,5 @@
-package strategiesNoGUI;
+package filters;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -9,22 +8,16 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Vector;
-
 import com.tictactec.ta.lib.Core;
 import com.tictactec.ta.lib.MInteger;
-import com.tictactec.ta.lib.RetCode;
-
 import stockGenie.BloombergAPICommunicator;
 import stockGenie.ExcelOutput;
 import stockGenie.Stock;
 import stockGenie.StockUniverse;
 
 public class StrategyA extends StrategyAbstractClass{
-	
-	private PrintWriter pw;
-	
-	public StrategyA(BloombergAPICommunicator bloomberg){
+
+	public StrategyA(BloombergAPICommunicator bloomberg) {
 		super(bloomberg);
 	}
 
@@ -211,11 +204,17 @@ public class StrategyA extends StrategyAbstractClass{
 				excel.addRow(0);
 				excel.addCell(s.ticker);
 			}
-		} catch (FileNotFoundException e1) {
-			return;
-		} catch (IOException e) {
-			return;
+			
+			//place all orders in final order list
+			orderList = new Order[buyList.size() + sellList.size()];
+			int i = 0;
+			for (Stock s: buyList)
+				orderList[i++] = new Order(Order.Action.BUY, 0 , s.ticker, new String() , 0.0, new Date());
+			for (Stock s: sellList)
+				orderList[i++] = new Order(Order.Action.SELL, 0 , s.ticker, new String() , 0.0, new Date());
 		}
+		catch (FileNotFoundException e1) {} 
+		catch (IOException e) {}
 	}
 	
 	private void buildColumnHeadings(ExcelOutput excel) {
