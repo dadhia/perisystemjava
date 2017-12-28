@@ -1,0 +1,3 @@
+This run was started on: 27/12/17 21:29:55
+Trying to connect to bloomberg
+Session started
