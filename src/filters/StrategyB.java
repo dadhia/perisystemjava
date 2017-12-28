@@ -1,8 +1,9 @@
-package strategiesNoGUI;
+package filters;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Date;
 
 import stockGenie.BloombergAPICommunicator;
 import stockGenie.ExcelOutput;
@@ -74,10 +75,14 @@ public class StrategyB extends StrategyAbstractClass {
 				excel.addRow(0);
 				excel.addCell(s.ticker);
 			}
-			
-		} catch (IOException e) {
-			e.printStackTrace();
+			orderList = new Order[buyList.size() + sellList.size()];
+			int i = 0;
+			for (Stock s: buyList)
+				orderList[i++] = new Order(Order.Action.BUY, 0 , s.ticker, new String() , 0.0, new Date());
+			for (Stock s: sellList)
+				orderList[i++] = new Order(Order.Action.SELL, 0 , s.ticker, new String() , 0.0, new Date());
 		}
+		catch (IOException e) {}
 	}
 	
 	private void buildColumnHeadings(ExcelOutput excel) {
@@ -101,7 +106,4 @@ public class StrategyB extends StrategyAbstractClass {
 		excel.addCell(s.sma20);
 		excel.addCell(s.sma50);
 	}
-	
-	
-
 }

@@ -1,4 +1,4 @@
-package stockGenie;
+package TBD;
 
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;

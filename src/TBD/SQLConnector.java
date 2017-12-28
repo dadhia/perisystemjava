@@ -1,4 +1,4 @@
-package stockGenie;
+package TBD;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
