@@ -17,7 +17,7 @@ public class Dyanmic {
 		while (stocksLeft) {
 		assets.add(getNextAsset());
 		}
-		//compare values analyze them for price increase and decrease sell rules and ìtrimmingî sell rule 
+		//compare values analyze them for price increase and decrease sell rules and ‚Äútrimming‚Äù sell rule 
 		for (Asset a: assets) {
 			//Rule 1: Sell stock if it drops 8% its original value//
 			if (a.valueNow() < (a.getOrigValue() * (1 - getLossLimitCutoff(a)))) {
