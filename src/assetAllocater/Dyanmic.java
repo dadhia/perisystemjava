@@ -1,23 +1,15 @@
 package assetAllocater;
 
-import java.util.ArrayList;
+
 import java.util.Date;
 import filters.Order;
 import stockGenie.BloombergAPICommunicator;
 
-
-public class Dyanmic {
-	
-	private double currentBalance;
-	private ArrayList<Asset> assets;
-	private ArrayList<Order> orderList;
-	private boolean stocksLeft;
+public class Dyanmic extends Allocator {
 	
 	public void dailyRun(BloombergAPICommunicator bloomberg) {
 		//get asset names and amounts from trader's workstation
-		while (stocksLeft) {
-		assets.add(getNextAsset());
-		}
+		this.getPortfolio();
 		//compare values analyze them for price increase and decrease sell rules and “trimming” sell rule 
 		for (Asset a: assets) {
 			//Rule 1: Sell stock if it drops 8% its original value//
@@ -37,26 +29,22 @@ public class Dyanmic {
 	}
 		
 	public double getLossLimitCutoff(Asset a) {
-		return 0; //going to use sql call here//
+		return 0; 
+		// TODO use sql call to get the value, remove 0
 	}
 	
 	public double getGrowthLimitCutoff(Asset a) {
-		return 0; //going to use sql call here//
+		return 0; // TODO use sql call to get the value, remove 0
 	}
 	
 	public double getPortPortionCutoff(Asset a) {
-		return 0; //going to use sql call here//
+		return 0; // TODO use sql call to get the value, remove 0
 	}
 	
 	public double getPortPortionAfterReduction(Asset a) {
-		return 0; //going to use sql call here//
+		return 0; // TODO use sql call to get the value, remove 0
 	}
 		
-	public Asset getNextAsset() {
-		stocksLeft = false;
-		return new Asset(99.99, 200, "AAPL", BloombergAPICommunicator.Sector.INFORMATION_TECHNOLOGY);
-	}	
-	
 	public static void main(String[] args) {
 	}
 	
