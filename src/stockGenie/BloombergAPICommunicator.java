@@ -41,6 +41,21 @@ public class BloombergAPICommunicator {
 		OMXSTKH30, SWISSMKT, NIKKEI, HANGSENG, CSI300, SPASX200
 	}
 	
+	/* The following link shows the industry sectors that bloomberg has defined
+	https://www.bloomberg.com/research/sectorandindustry/overview/sectorlanding.asp*/
+	public enum Sector {
+		CONSUMER_DISCRETIONARY, 
+		CONSUMER_STAPLES, 
+		ENERGY, 
+		FINANCIALS, 
+		HEALTHCARE, 
+		INDUSTRIALS, 
+		INFORMATION_TECHNOLOGY, 
+		MATERIALS,
+		TELECOM,
+		UTILITIES
+	}
+	
 	//Various fields that can be called for a Bloomberg "Historical Request#
 	public enum HistoricalRequest {
 		ALL,		//All five fields below 
