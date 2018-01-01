@@ -10,14 +10,15 @@ import java.util.Calendar;
 import java.util.Date;
 import com.tictactec.ta.lib.Core;
 import com.tictactec.ta.lib.MInteger;
-import stockGenie.BloombergAPICommunicator;
+
+import data.BloombergAPICommunicator;
+import data.Stock;
+import data.StockUniverse;
 import stockGenie.ExcelOutput;
-import stockGenie.Stock;
-import stockGenie.StockUniverse;
 
-public class StrategyA extends StrategyAbstractClass{
+public class FilterA extends Filter{
 
-	public StrategyA(BloombergAPICommunicator bloomberg) {
+	public FilterA(BloombergAPICommunicator bloomberg) {
 		super(bloomberg);
 	}
 
@@ -27,7 +28,13 @@ public class StrategyA extends StrategyAbstractClass{
 			pw.println("Strategy One");
 			pw.println("Requesting FUNDAMENTALS_ONE from Bloomberg"); 
 			pw.flush();
-			bloomberg.requestStockDetails(BloombergAPICommunicator.Strategies.FUNDAMENTALS_ONE);
+			
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.NAME);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PE_RATIO);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.LAST_PX);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+			bloomberg.requestStockDetails(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
+			
 			//get all the technical data
 			pw.println("Received FUNDAMENTALS_ONE from Bloomberg");
 			pw.println("Requesting historical price details (ALL)");
@@ -61,6 +68,7 @@ public class StrategyA extends StrategyAbstractClass{
 			
 			pw.println("The start date is: " + startDate + ", which is a " + calendar.get(Calendar.DAY_OF_WEEK));
 			pw.flush();
+			
 			bloomberg.requestHistoricalPriceData(
 					BloombergAPICommunicator.HistoricalRequest.ALL,
 					startDate,endDate, pw);
@@ -81,35 +89,37 @@ public class StrategyA extends StrategyAbstractClass{
 					noData.add(s);
 					continue;
 				}
-					
-				
-				if ((s.pTangBV <= 5.0 && s.pTangBV >= 0.0) && (s.pEbitda <= 10.0 && s.pEbitda >= 0.0)) 
+				double tangBV = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+				double ebitda = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
+				double price = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.LAST_PX);
+				double svOne, svTwo, svThree, svFour;
+				if ( tangBV <= 5.0 && ebitda <= 10.0) 
 				{
 					//calculate 65 day SMA
 					MInteger outBegin65 = new MInteger();
 					MInteger outLength65 = new MInteger();
 					double [] sma65 = new double[s.px_close.length];
 					c.sma(0, s.px_close.length-1, s.px_close, 65, outBegin65, outLength65, sma65);
-					s.svOne = sma65[outLength65.value-1];		//store it into svOne--special value one		
+					svOne = sma65[outLength65.value-1];		
 					
 					//calculate 20 day SMA
 					MInteger outBegin20 = new MInteger();
 					MInteger outLength20 = new MInteger();
 					double [] sma20 = new double[s.px_close.length];
 					c.sma(0, s.px_close.length-1, s.px_close, 20, outBegin20, outLength20, sma20);
-					s.svTwo = sma20[outLength20.value-1];		//store it into svTwo--special value two
+					svTwo = sma20[outLength20.value-1];		//store it into svTwo--special value two
 					
 					//if the price is less than both SMA's
-					if ((s.price <= s.svTwo) && (s.price <= s.svOne)) {
+					if (price <= svTwo && price <= svOne) {
 						//calculate Chaikin A/D line
 						double [] ad = new double [s.px_close.length];
 						MInteger outBeginAD = new MInteger();
 						MInteger outLengthAD = new MInteger();
 						c.ad(0, s.px_close.length-1, s.px_high, s.px_low, s.px_close, s.volume, outBeginAD, outLengthAD, ad);
-						s.svThree = ad[outLengthAD.value-1];	//store in svThree
+						svThree = ad[outLengthAD.value-1];	//store in svThree
 						
 						boolean adBullish = false;
-						if ((s.svThree >= s.svOne) && (s.svThree >= s.svTwo))
+						if (svThree >= svOne && svThree >= svTwo)
 							adBullish = true;				
 						
 						//calculate OBV
@@ -117,10 +127,10 @@ public class StrategyA extends StrategyAbstractClass{
 						MInteger outLengthOBV = new MInteger();
 						double [] obv = new double[s.px_close.length];
 						c.obv(0, s.px_close.length-1, s.px_close, s.volume, outBeginOBV, outLengthOBV, obv);
-						s.svFour = obv[outLengthOBV.value-1];	//store in svFour
+						svFour = obv[outLengthOBV.value-1];	//store in svFour
 						
 						boolean obvBullish = false;
-						if ((s.svFour >= s.svOne) && (s.svFour >= s.svTwo))
+						if (svFour >= svOne && svFour >= svTwo)
 								obvBullish = true;		
 						if (obvBullish && adBullish) {
 							s.status = Stock.Status.BUY;
@@ -129,7 +139,7 @@ public class StrategyA extends StrategyAbstractClass{
 							
 					}
 				}
-				else if ((s.pEbitda > 10.0 || s.pEbitda < 0) && (s.pTangBV > 10.0 || s.pTangBV < 0))
+				else if ((ebitda > 10.0 || ebitda < 0) && (tangBV > 10.0 || tangBV < 0))
 				{
 						
 					//calculate the 65 Day Simple Moving Average (SMA)
@@ -137,31 +147,31 @@ public class StrategyA extends StrategyAbstractClass{
 					MInteger outLength65 = new MInteger();
 					double [] sma65 = new double[s.px_close.length];
 					c.sma(0, s.px_close.length-1, s.px_close, 65, outBegin65, outLength65, sma65);
-					s.svOne = sma65[outLength65.value-1];					
+					svOne = sma65[outLength65.value-1];					
 					
 					//calculate the 20 Day Simple Moving Average (SMA)
 					MInteger outBegin20 = new MInteger();
 					MInteger outLength20 = new MInteger();
 					double [] sma20 = new double[s.px_close.length];
 					c.sma(0, s.px_close.length-1, s.px_close, 20, outBegin20, outLength20, sma20);
-					s.svTwo = sma20[outLength20.value-1];
+					svTwo = sma20[outLength20.value-1];
 					
 					//check the price
-					if ((s.price >= sma20[outLength20.value-1]) && (s.price >= sma65[outLength65.value-1])) 
+					if (price >= sma20[outLength20.value-1] && price >= sma65[outLength65.value-1]) 
 					{
 						//Calculate the A/D line
 						double [] ad = new double [s.px_close.length];
 						MInteger outBeginAD = new MInteger();
 						MInteger outLengthAD = new MInteger();
 						c.ad(0, s.px_close.length-1, s.px_high, s.px_low, s.px_close, s.volume, outBeginAD, outLengthAD, ad);
-						s.svThree = ad[outLengthAD.value-1];
+						svThree = ad[outLengthAD.value-1];
 						
 						//Calculate the OBV -- On-Balance Volume
 						MInteger outBeginOBV = new MInteger();
 						MInteger outLengthOBV = new MInteger();
 						double [] obv = new double[s.px_close.length];
 						c.obv(0, s.px_close.length-1, s.px_close, s.volume, outBeginOBV, outLengthOBV, obv);
-						s.svFour = obv[outLengthOBV.value-1];
+						svFour = obv[outLengthOBV.value-1];
 						
 						boolean obvBearish = false;
 						boolean adBearish = false;
@@ -209,9 +219,9 @@ public class StrategyA extends StrategyAbstractClass{
 			orderList = new Order[buyList.size() + sellList.size()];
 			int i = 0;
 			for (Stock s: buyList)
-				orderList[i++] = new Order(Order.Action.BUY, 0 , s.ticker, 0.0 , new Date());
+				orderList[i++] = new Order(Order.Action.BUY, 0 , s.ticker, 0.0, new Date());
 			for (Stock s: sellList)
-				orderList[i++] = new Order(Order.Action.SELL, 0 , s.ticker, 0.0 , new Date());
+				orderList[i++] = new Order(Order.Action.SELL, 0 , s.ticker, 0.0, new Date());
 		}
 		catch (FileNotFoundException e1) {} 
 		catch (IOException e) {}
@@ -232,12 +242,15 @@ public class StrategyA extends StrategyAbstractClass{
 	private void printStockDetails(ExcelOutput excel, Stock s) {
 		excel.addRow(0);
 		excel.addCell(s.ticker);
-		excel.addCell(s.price);
-		excel.addCell(s.pTangBV);
-		excel.addCell(s.pEbitda);
-		excel.addCell(s.svOne);
-		excel.addCell(s.svTwo);
-		excel.addCell(s.svThree);
-		excel.addCell(s.svFour);
+		double price = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.LAST_PX);
+		double ebitda = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_EBITDA_RATIO);
+		double tangBV = (double)s.referenceData.get(BloombergAPICommunicator.DataRequest.PX_TBV_RATIO);
+		excel.addCell(price);
+		excel.addCell(tangBV);
+		excel.addCell(ebitda);
+		excel.addCell(0);
+		excel.addCell(0);
+		excel.addCell(0);
+		excel.addCell(0);
 	}
 }

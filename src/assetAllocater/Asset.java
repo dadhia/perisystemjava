@@ -1,14 +1,15 @@
 package assetAllocater;
 
 
-import stockGenie.BloombergAPICommunicator;
+import data.BloombergAPICommunicator;
+import data.BloombergAPICommunicator.Sector;
 
 public class Asset {
 	
 	private double price;
 	private int amount;
 	private String ticker;
-	private BloombergAPICommunicator.Sector sector; 
+	private Sector sector; 
 	private double origValue;
 	
 	//Rule 1 fields 
@@ -22,7 +23,7 @@ public class Asset {
 	private double portPortionAfterReduction;
 	
 	
-	public Asset(double price, int amount, String ticker, BloombergAPICommunicator.Sector sector) {
+	public Asset(double price, int amount, String ticker, Sector sector) {
 		super();
 		this.price = price;
 		this.amount = amount;

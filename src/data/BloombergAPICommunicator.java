@@ -1,4 +1,4 @@
-package stockGenie;
+package data;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -10,35 +10,42 @@ import com.bloomberglp.blpapi.Request;
 import com.bloomberglp.blpapi.Service;
 import com.bloomberglp.blpapi.Session;
 import com.bloomberglp.blpapi.SessionOptions;
-
-import TBD.ClientGUI;
-
 import com.bloomberglp.blpapi.MessageIterator;
 
 
 /**
  * Class BloombergAPICommunicator.
- * This class is the core framework used by strategies to communicate with
- * Bloomberg market data.
+ * This class is the core framework used by filters to communicate with Bloomberg market data.
  */
 public class BloombergAPICommunicator {
-	
-	//private member variables used for logging functionality
-	private final int sourceIdentifierID = 2;
-	private final String sourceName = "Bloomberg API";
-	//private member variables to maintain communication with Bloomberg
-	private Session session;
-	private Service refDataService;
-	private Service histStudyService;
-	
-	private ClientGUI clientGUI;
-	private StockUniverse stockUniverse;
 	
 	//Various indices that can be called from Bloomberg
 	public enum Index {
 		DOWJONES,SP500, NASDAQ, SPTSX, MEXIPC, IBOVESPA, 
 		EUROSTOXX, FTSE100, CAC40, DAX, IBEX35, FTSEMIB, 
 		OMXSTKH30, SWISSMKT, NIKKEI, HANGSENG, CSI300, SPASX200
+	}
+	
+	//Various fields that can be called for a Bloomberg "Historical Request"
+	public enum HistoricalRequest {
+		ALL,		//All five fields below 
+		PX_OPEN,	//open price
+		PX_HIGH,	//high price
+		PX_LOW,		//low price
+		PX_CLOSE,	//close price
+		VOLUME		//volume
+	}
+	
+	//Various fields that can be called for a Bloomberg "Reference Data Request"
+	public enum DataRequest {
+		NAME,			// Company Name
+		PE_RATIO, 		// P/E Ratio
+		LAST_PX,  		// Last price
+		PX_TBV_RATIO,	// Price to Tangible Book Value Per Share
+		PX_EBITDA_RATIO,// Price to EBITDA
+		MOV_AVG_20D,	// 20-day moving average
+		MOV_AVG_50D, 	// 50-day moving average
+		MOV_AVG_10D		// 10-day moving average
 	}
 	
 	/* The following link shows the industry sectors that bloomberg has defined
@@ -56,87 +63,72 @@ public class BloombergAPICommunicator {
 		UTILITIES
 	}
 	
-	//Various fields that can be called for a Bloomberg "Historical Request#
-	public enum HistoricalRequest {
-		ALL,		//All five fields below 
-		PX_OPEN,	//open price
-		PX_HIGH,	//high price
-		PX_LOW,		//low price
-		PX_CLOSE,	//close price
-		VOLUME		//volume
-	}
+	//private member variables to maintain communication with Bloomberg
+	private Session session;
+	private Service refDataService;
+	private Service histStudyService;		//TODO
 	
-	/**
-	 * Strategies
-	 * These are different than the "Strategy" class
-	 * -->perhaps the names are a bit too confusing and should be changed
-	 * The goal of Strategies in BloombergAPICommunicator is to provide an easy way to collect multiple
-	 * data fields for all members of a StockUniverse.
-	 * Proper practice is to add details of what each enumeration will provide so that we can reuse them
-	 * in various strategies that we build.
-	 */
-	public enum Strategies {
-		BASIC_INFORMATION,	//Company Name, PE Ratio, and LAST PRICE
-		FUNDAMENTALS_ONE,
-		FUNDAMENTALS_TWO
-	}
-	
-
-	/**
-	 * Constructor
-	 * @param clientGUI ClientGUI
-	 * @throws IOException
-	 * @throws InterruptedException
-	 */
-	public BloombergAPICommunicator(ClientGUI clientGUI)
-			throws IOException, InterruptedException 
-	{
-		this.clientGUI = clientGUI;
-		startSession();
-		establishRefDataService();
-		establishHistoricalStudyService();
-	}
-
+	//maintains the stocks that we should collect data for
+	protected StockUniverse stockUniverse;	
 	
 	/**
 	 * Constructor.
+	 * Establishes various connections to Bloomberg and logs that these have started.
 	 * @param pw PrintWriter
 	 * @throws InterruptedException
 	 * @throws IOException
 	 */
-	public BloombergAPICommunicator(PrintWriter pw) 
+	public BloombergAPICommunicator(PrintWriter pw, Index index) 
 			throws InterruptedException, IOException
 	{
-		//Start a session
 		startSession();
-		pw.println("Session started");
-		pw.flush();
-		//Start Reference Data Service
+		pw.println("Session started"); pw.flush();
 		establishRefDataService();
-		pw.println("Ref Data Svc started");
-		pw.flush();
-		//Start Historical Study Service
+		pw.println("Ref Data Svc started"); pw.flush();
 		establishHistoricalStudyService();
-		pw.println("Hist study svc started");
-		pw.flush();
+		pw.println("Hist study svc started"); pw.flush();
+		getIndexMembers(index);
+	}
+	
+	/**
+	 * Constructs the stock universe.  Can be overriden by inheriting classes.
+	 */
+	protected void constructUniverse() {
+		stockUniverse = new StockUniverse();
+	}
+	
+	/**
+	 * Starts a session with bloomberg using "localhost" and 8194 as the 
+	 * default IP address and port, respectively.
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	private void startSession() throws IOException, InterruptedException {
+		//Basic connection to Bloomberg
+		SessionOptions sessionOptions = new SessionOptions();
+		sessionOptions.setServerHost("localhost");
+		sessionOptions.setServerPort(8194);
+		session = new Session(sessionOptions);
+		session.start();
 	}
 	
 	
 	/**
-	 * Create a Reference Data Service and store it in the refDataService
-	 * member variable.
+	 * Creates a Reference Data Service.
+	 * @throws InterruptedException
+	 * @throws IOException
 	 */
-	private void establishRefDataService() 
-			throws InterruptedException, IOException 
+	private void establishRefDataService() throws InterruptedException, IOException 
 	{
 		session.openService("//blp/refdata");
 		refDataService = session.getService("//blp/refdata");
 	}
-	
+
 	
 	/**
-	 * Create a Historical Study Service and store it in the histStudyService
-	 * member variable.
+	 * Creates a Historical Study Service.
+	 * @throws InterruptedException
+	 * @throws IOException
 	 */
 	private void establishHistoricalStudyService() 
 			throws InterruptedException, IOException 
@@ -147,59 +139,37 @@ public class BloombergAPICommunicator {
 	
 	
 	/**
-	 * Starts a session with bloomberg using "localhost" and 8194
-	 * as the default IP address and port, respectively.
-	 * @throws IOException
-	 * @throws InterruptedException
-	 */
-	private void startSession() throws IOException, InterruptedException {
-		//Basic connection to bloomberg
-		SessionOptions sessionOptions = new SessionOptions();
-		sessionOptions.setServerHost("localhost");
-		sessionOptions.setServerPort(8194);
-		session = new Session(sessionOptions);	//start session
-		session.start();
-	}
-
-	
-	/**
-	 * Provides a StockUniverse with all members of an index.
+	 * Builds the internal StockUniverse from an index.
+	 * We force the user to provide an index upon construction so that a stock universe always exists.
 	 * @param index Index
 	 * @return StockUniverse
 	 * @throws IOException
 	 */
-	public StockUniverse getIndexMembers(Index index) throws IOException {
-		//Create a request -- just basic bloomberg syntax
+	private void getIndexMembers(Index index) throws IOException {
+		//make a request, add the index, and ask for all members and a count of members
 		Request request = refDataService.createRequest("ReferenceDataRequest");
-		//add the index
 		addIndexAsSecurity(index, request);
-		//we ask for two things: all of the members of the index, and a count
 		request.getElement("fields").appendValue("INDX_MEMBERS");
 		request.getElement("fields").appendValue("COUNT_INDEX_MEMBERS");
-		//send the request
 		session.sendRequest(request, null);
 
 		//wait for a response
+		//can be split into multiple PARTIAL RESPONSE's followed by a final RESPONSE
+		//TODO: handle unlikely case with multiple responses for this request
 		while (true) {
 			Event event = null;
 			try {
 				event = session.nextEvent();	//keep pulling events
 			} catch (InterruptedException e) {}
 			
-			//the response can potentially be split into multiple events
-			//final event is indicated by the Event Type RESPONSE
 			if(event.eventType() == Event.EventType.RESPONSE) {
-				readIndexResponse(event);	//build the stock universe
+				readIndexResponse(event);
 				break;
 			}
-			
-			//if we had multiple events than the earlier ones would be
-			//called PARTIAL_RESPONSE by Bloomberg
 			else if (event.eventType() == Event.EventType.PARTIAL_RESPONSE) {
-				readIndexResponse(event);	//build the stock universe
+				readIndexResponse(event);
 			}
 		}
-		return stockUniverse;
 	}
 	
 	
@@ -233,6 +203,7 @@ public class BloombergAPICommunicator {
 	}
 	
 	
+	
 	/**
 	 * Used by getIndexMembers() to read the full response and populate the stock universe.
 	 * @param indexResponseEvent Event
@@ -251,65 +222,52 @@ public class BloombergAPICommunicator {
 			
 			//get the number of securities in this specific index
 			int memberCount = fieldData.getElementAsInt32("COUNT_INDEX_MEMBERS");
-			//clientGUI.makeUpdate("There are " + memberCount + " members.", sourceIdentifierID, sourceName);
-			
+						
 			//iterate through the list and get all the tickers
 			Element members = fieldData.getElement("INDX_MEMBERS");
 			String [] tickers = new String[memberCount];
 			for (int i = 0; i < memberCount; i++) {
 				Element securityName = members.getValueAsElement(i);
-				//populate each stock with a string of its name
-				//Example: Apple Inc will be AAPL US
-				//later on we append with the "EQUITY" tag, but there is no point in storing that in memory
 				tickers[i] = securityName.getElementAsString("Member Ticker and Exchange Code");
 			}
 			
-			stockUniverse = new StockUniverse(memberCount);
-			stockUniverse.setTickers(tickers);
+			stockUniverse.buildUniverse(tickers, memberCount);
 		}
 	}
 	
 	
 	/**
+	 * Creates a ReferenceDataRequest for all stocks in our stock universe.
+	 * @return Request
+	 */
+	private Request buildRefDataRequest() {
+		Request request = refDataService.createRequest("ReferenceDataRequest");
+		Stock [] stocks = stockUniverse.getStocks();
+		Element securitiesElement = request.getElement("securities");
+		for (Stock s: stocks)
+			securitiesElement.appendValue(s.ticker + " EQUITY");
+		return request;
+	}
+	
+	/**
 	 * Method used to request specific details about every stock in our StockUniverse.
 	 * Call this method after calling getIndexMembers().
-	 * @param strategy BloombergAPICommunicator.Strategies (enum)
+	 * @param field DataRequest
 	 * @throws IOException
 	 */
-	public void requestStockDetails(BloombergAPICommunicator.Strategies strategy) 
-			throws IOException 
+	public void requestStockDetails(DataRequest field) throws IOException 
 	{
-		//make a new reference data request -- standard bloomberg syntax
-		Request request = refDataService.createRequest("ReferenceDataRequest");
-		
-		//populate all members of our stock universe
-		Stock [] stocks;
-		stocks = stockUniverse.getStocks();
-		Element securitiesElement = request.getElement("securities");
-		for (int i = 0; i < stocks.length; i++)
-			securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
-		
-		//Based on the strategy that was selected, we simply add the fields we want
-		//ADD MORE STRATEGIES HERE
-		switch (strategy) {
-			case BASIC_INFORMATION: {
-				request.getElement("fields").appendValue("NAME");
-				request.getElement("fields").appendValue("PE_RATIO");
-				request.getElement("fields").appendValue("LAST_PRICE");
-				break;
-			}
-			case FUNDAMENTALS_ONE: {
-				request.getElement("fields").appendValue("PX_TO_TANG_BV_PER_SH");
-				request.getElement("fields").appendValue("PX_TO_EBITDA");
-				break;
-			}
-			case FUNDAMENTALS_TWO: {
-				request.getElement("fields").appendValue("PX_TO_TANG_BV_PER_SH");
-				request.getElement("fields").appendValue("PX_TO_EBITDA");
-				request.getElement("fields").appendValue("MOV_AVG_20D");
-				request.getElement("fields").appendValue("MOV_AVG_50D");
-				request.getElement("fields").appendValue("MOV_AVG_10D");	
-			}
+		Request request = buildRefDataRequest();
+		Element fields = request.getElement("fields");
+		switch (field) {
+			case NAME: fields.appendValue("NAME"); break;
+			case PE_RATIO: fields.appendValue("PE_RATIO"); break;
+			case LAST_PX: fields.appendValue("LAST_PRICE"); break;
+			case PX_TBV_RATIO: fields.appendValue("PX_TO_TANG_BV_PER_SH"); break;
+			case PX_EBITDA_RATIO: fields.appendValue("PX_TO_EBITDA"); break;
+			case MOV_AVG_20D: fields.appendValue("MOV_AVG_20D"); break;
+			case MOV_AVG_50D: fields.appendValue("MOV_AVG_50D"); break;
+			case MOV_AVG_10D: fields.appendValue("MOV_AVG_10D"); break;
 		}
 		session.sendRequest(request, null);	//send request
 		
@@ -322,21 +280,23 @@ public class BloombergAPICommunicator {
 			} catch (InterruptedException e) {}
 			
 			if(event.eventType() == Event.EventType.RESPONSE) {
-				readStocksResponse(event, strategy, stocks);
-				break;	//leave the loop
+				readStocksResponse(event, field, stockUniverse.getStocks());
+				break;
 			}
 			else if (event.eventType() == Event.EventType.PARTIAL_RESPONSE) {
-				readStocksResponse(event, strategy, stocks);
+				readStocksResponse(event, field, stockUniverse.getStocks());
 			}
 		}
 	}
 	
 	
 	/**
-	 * Used by request stock details to read the stocks response.
+	 * Helper method used by requestStockDetails() to read the response;
+	 * @param event
+	 * @param field
+	 * @param stocks
 	 */
-	public void readStocksResponse(Event event, BloombergAPICommunicator.Strategies strategy, 
-									Stock [] stocks) 
+	public void readStocksResponse(Event event, DataRequest field, Stock [] stocks) 
 	{
 		MessageIterator iter = event.messageIterator();
 		while(iter.hasNext()) {
@@ -344,115 +304,118 @@ public class BloombergAPICommunicator {
 			//find the security data array which holds details per stock
 			Element referenceDataRequest = message.asElement();
 			Element securityDataArray = referenceDataRequest.getElement("securityData");
+			
 			//count of number of stocks that are in this message
 			int numberOfStocksInMessage = securityDataArray.numValues();
 			
-			//FOR LOOP WILL ITERATE THROUGH ALL THE STOCKS
-			//for every stock in THIS message
+			//iterate through all stocks in this message
 			for (int i = 0; i < numberOfStocksInMessage; i++) {
-				//get the stock
+				//get the stock and its sequence number
 				Element singleStock = securityDataArray.getValueAsElement(i);
-				//the sequence number matches the stock to the number we have assigned
-				//it in our stock universe
 				int sequenceNumber = singleStock.getElementAsInt32("sequenceNumber");
 				
-				//the field data holds the vital information that was requested for
-				//that particular stock
+				//the field data holds the vital information that was requested
 				Element fieldData = singleStock.getElement("fieldData");
-				switch (strategy){
-					case BASIC_INFORMATION: {
-						if (fieldData.hasElement("NAME"))
-							stocks[sequenceNumber].companyName = fieldData.getElementAsString("NAME");
-						if (fieldData.hasElement("PE_RATIO"))
-							stocks[sequenceNumber].pe = fieldData.getElementAsFloat64("PE_RATIO");
-						else 
-							stocks[sequenceNumber].pe = Integer.MAX_VALUE; 	// No P/E so put MAX VALUE
-						if (fieldData.hasElement("LAST_PRICE"))
-							stocks[sequenceNumber].price = fieldData.getElementAsFloat64("LAST_PRICE");
-						break;
-					} 
-					case FUNDAMENTALS_ONE: {
-						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH"))
-							stocks[sequenceNumber].pTangBV = fieldData.getElementAsFloat64("PX_TO_TANG_BV_PER_SH");
-						else
-							stocks[sequenceNumber].pTangBV = Integer.MAX_VALUE;
-						if (fieldData.hasElement("PX_TO_EBITDA"))
-							stocks[sequenceNumber].pEbitda = fieldData.getElementAsFloat64("PX_TO_EBITDA");
-						else
-							stocks[sequenceNumber].pEbitda = Integer.MAX_VALUE;
-						break;
-					}
-					case FUNDAMENTALS_TWO: {
-						if (fieldData.hasElement("PX_TO_TANG_BV_PER_SH"))
-							stocks[sequenceNumber].pTangBV = fieldData.getElementAsFloat64("PX_TO_TANG_BV_PER_SH");
-						else
-							stocks[sequenceNumber].pTangBV = Integer.MAX_VALUE;
-						if (fieldData.hasElement("PX_TO_EBITDA"))
-							stocks[sequenceNumber].pEbitda = fieldData.getElementAsFloat64("PX_TO_EBITDA");
-						else
-							stocks[sequenceNumber].pEbitda = Integer.MAX_VALUE;
-						if (fieldData.hasElement("MOV_AVG_10D"))
-							stocks[sequenceNumber].sma10 = fieldData.getElementAsFloat64("MOV_AVG_10D");
-						if (fieldData.hasElement("MOV_AVG_20D"))
-							stocks[sequenceNumber].sma20 = fieldData.getElementAsFloat64("MOV_AVG_20D");
-						if (fieldData.hasElement("MOV_AVG_50D"))
-							stocks[sequenceNumber].sma50 = fieldData.getElementAsFloat64("MOV_AVG_50D");
-					}
+				Stock stock = stocks[sequenceNumber];
+				switch (field) {
+				case NAME:
+					getStringFromBB(field, "NAME", "", fieldData, stock); break;
+				case LAST_PX:
+					getDoubleFromBB(field, "LAST_PRICE", 0, fieldData, stock); break;
+				case PE_RATIO: 
+					getDoubleFromBB(field, "PE_RATIO", Double.MAX_VALUE, fieldData, stock); break;
+				case PX_TBV_RATIO:
+					getDoubleFromBB(field, "PX_TO_TANG_BV_PER_SH", Double.MAX_VALUE, fieldData, stock); break;
+				case PX_EBITDA_RATIO:
+					getDoubleFromBB(field, "PX_TO_EBITDA", Double.MAX_VALUE, fieldData, stock); break;
+				case MOV_AVG_20D:
+					getDoubleFromBB(field, "MOV_AVG_20D", Double.MAX_VALUE, fieldData, stock); break;
+				case MOV_AVG_50D:
+					getDoubleFromBB(field, "MOV_AVG_50D", Double.MAX_VALUE, fieldData, stock); break;
+				case MOV_AVG_10D:
+					getDoubleFromBB(field, "MOV_AVG_10D", Double.MAX_VALUE, fieldData, stock); break;
 				}
 			}
 		}
 	}
 	
+	
 	/**
-	 * Historical Price Data request.
+	 * Helper method used to populate stock information for Float64.
+	 * @param field DataRequest
+	 * @param elementName String
+	 * @param defaultValue double
+	 * @param parentElement Element
+	 * @param stock Stock
 	 */
-	public void requestHistoricalPriceData(
-			BloombergAPICommunicator.HistoricalRequest requestType,
-			String startDate,
-			String endDate, PrintWriter pw) throws IOException 
+	private void getDoubleFromBB(DataRequest field, String elementName, 
+			double defaultValue, Element parentElement, Stock stock) {
+		if (parentElement.hasElement(elementName))
+			stock.referenceData.put(field, parentElement.getElementAsFloat64(elementName));
+		else
+			stock.referenceData.put(field, defaultValue);
+	}
+	
+	
+	/**
+	 * Helper method used to populate stock information for String.
+	 * @param field DataRequest
+	 * @param elementName String
+	 * @param defaultValue double
+	 * @param parentElement Element
+	 * @param stock Stock
+	 */
+	private void getStringFromBB(DataRequest field, String elementName,
+			String defaultValue, Element parentElement, Stock stock) {
+		if (parentElement.hasElement(elementName))
+			stock.referenceData.put(field, parentElement.getElementAsString(elementName));
+		else
+			stock.referenceData.put(field, defaultValue);
+	}
+	
+	
+	/**
+	 * Historical Price Data request through Bloomberg API.
+	 * @param requestType BloombergAPICommunicator.HistoricalRequest
+	 * @param startDate String
+	 * @param endDate String
+	 * @param pw PrintWriter (for logging)
+	 * @throws IOException
+	 */
+	public void requestHistoricalPriceData(BloombergAPICommunicator.HistoricalRequest requestType,
+			String startDate, String endDate, PrintWriter pw) throws IOException 
 	{
 		//get the stock names
 		Stock [] stocks;
 		stocks = stockUniverse.getStocks();
 		
-		//To send a historical price data request, we first need to check
-		//that bloomberg has enough data to fulfill our request
-		
-		//For that, we wend a histCheck, which compares our desired interval start
-		//date to the start date available for bloomberg data
-		Request histCheck = refDataService.createRequest("ReferenceDataRequest");
-		
-		//fill the securities element with all stock tickers, appending
-		//with the "EQUITY" tag
-		Element securities = histCheck.getElement("securities");
-		for (int i = 0; i < stocks.length; i++)
-			securities.appendValue(stocks[i].ticker + " EQUITY");
-		
-		//use the field INTERVAL_START_VALUE_DATE
-		Element fields = histCheck.getElement("fields");
-		fields.appendValue("INTERVAL_START_VALUE_DATE");
-			
-		//get the overrides element
+		/* To send a historical price data request, we first need to check that Bloomberg
+		 * has enough data to fulfill our request.  We can create a historical check message
+		 * which compares our desired interval start date to the start date available for
+		 * Bloomberg data.
+		 * We use the field "INTERVAL_START_VALUE_DATE" and override the "START_DATE_OVERRIDE"
+		 * and "END_DATE_OVERRIDE"
+		 */
+		Request histCheck = buildRefDataRequest();
+		histCheck.getElement("fields").appendValue("INTERVAL_START_VALUE_DATE");			
 		Element overrides = histCheck.getElement("overrides");
-		
-		//start date override
 		Element override1 = overrides.appendElement();
 		override1.setElement("fieldId", "START_DATE_OVERRIDE");
 		override1.setElement("value", startDate);
-		
-		//end date override
 		Element override2 = overrides.appendElement();
 		override2.setElement("fieldId", "END_DATE_OVERRIDE");
 		override2.setElement("value", endDate);
-				
-		session.sendRequest(histCheck, null);	//send the request
+		session.sendRequest(histCheck, null);
+		
+		//logging
 		pw.println("Sent histCheck");
 		pw.flush();
+		
 		while (true) {
 			Event event = null;
 			try {
 				event = session.nextEvent();
-				readHistoricalCheckMessage(event, stocks, startDate, pw);
+				readHistoricalCheckMessage(event, startDate, pw);
 				if (event.eventType() == Event.EventType.RESPONSE) {
 					break;	//only break when the full RESPONSE has been received
 				}	
@@ -460,34 +423,28 @@ public class BloombergAPICommunicator {
 				
 			}
 		}
+		
 		pw.println("Histcheck complete");
 		pw.flush();
-		//At this point, all equities that do not have date will have the
-		//status indicator: NO_DATA
 		
-		//We can move forward and request data from bloomberg for all tickers
-		//in our stock universe, excluding those with the NO_DATA status
+		/* At this point, all equities that do not have the appropriate amount of data will have
+		 * the status NO_DATA.  We move forward with our request from Bloomberg and only request
+		 * information on those stocks without the NO_DATA status.
+		 */
 		
-		//Again, we will build a request, but this time a HistoricalDataRequest
+		int stocksLeft = stocks.length;		//number of stocks left
+		int startIndex = 0;				//current index
 		
-		//rather than remove certain stocks from the universe, we will skip over
-		//them when they occur and note that index so the data matches correctly
-		
-		//total number of remaining stocks that we have not requested data for
-		int stocksLeft = stocks.length;	
-		//stock number that we are currently on
-		int startIndex = 0;
-		
-
-		while (stocksLeft > 0) {	//while there are stocks left
+		while (stocksLeft > 0) {
 			Request request = refDataService.createRequest("HistoricalDataRequest");
 			Element securitiesElement = request.getElement("securities");
 			int nextStart = 0;
+			//logging
 			pw.println("The start index is: " + startIndex);
 			pw.flush();
 			
 			for (int i = startIndex; i < stocks.length; i++) {
-				stocksLeft--;	//move to the next stock
+				stocksLeft -= 1;	//move to the next stock
 				if (stocks[i].status != Stock.Status.NO_DATA) {
 					securitiesElement.appendValue(stocks[i].ticker + " EQUITY");
 				}
@@ -496,41 +453,30 @@ public class BloombergAPICommunicator {
 					break;
 				}
 			}
-			pw.println("The last index inserted was " + (nextStart-2) + 
-					", and we skipped over index " + (nextStart-1));
+			
+			pw.println("The last index inserted was " + (nextStart-2) + ", and we skipped over index " + (nextStart-1));
 			pw.flush();
 			//now move on to the fields we want to request
 			Element fieldsElement = request.getElement("fields");
-			//different kinds of requests so we don't need all the data everytime
+			//different kinds of requests so we don't need all the data every time
 			switch (requestType) {
-				case PX_OPEN: {
-					fieldsElement.appendValue("PX_OPEN"); 
-					break;
-				}
-				case PX_HIGH: {
-					fieldsElement.appendValue("PX_HIGH");
-					break;
-				}
-				case PX_LOW: {
-					fieldsElement.appendValue("PX_LOW");
-					break;
-				}
-				case PX_CLOSE: {
-					fieldsElement.appendValue("PX_CLOSE_1D");
-					break;
-				}
-				case VOLUME: {
-					fieldsElement.appendValue("PX_VOLUME");
-					break;
-				}
-				case ALL: {
+				case PX_OPEN:
+					fieldsElement.appendValue("PX_OPEN"); break;
+				case PX_HIGH:
+					fieldsElement.appendValue("PX_HIGH"); break;
+				case PX_LOW:
+					fieldsElement.appendValue("PX_LOW"); break;
+				case PX_CLOSE:
+					fieldsElement.appendValue("PX_CLOSE_1D"); break;
+				case VOLUME:
+					fieldsElement.appendValue("PX_VOLUME"); break;
+				case ALL:
 					fieldsElement.appendValue("PX_OPEN");
 					fieldsElement.appendValue("PX_HIGH");
 					fieldsElement.appendValue("PX_LOW");
 					fieldsElement.appendValue("PX_CLOSE_1D");
 					fieldsElement.appendValue("PX_VOLUME");
 					break;
-				}
 			}
 			//some basic settings for getting daily data
 			//not sure exactly what these do, but they were in the example
@@ -541,15 +487,17 @@ public class BloombergAPICommunicator {
 			request.set("maxDataPoints", 10000);
 			request.set("returnEids", true);
 	
-			session.sendRequest(request, null);	//send the request
+			session.sendRequest(request, null);
+			//logging
 			pw.println("Sent request");
 			pw.flush();
+			
 			//wait for the request
 			while (true) {
 				Event event = null;
 				try {
 					event = session.nextEvent();
-					readHistoricalResponse(event, stocks, requestType, startIndex, pw);
+					readHistoricalResponse(event, requestType, startIndex, pw);
 					if (event.eventType() == Event.EventType.RESPONSE) {
 						break;
 					}
@@ -563,13 +511,15 @@ public class BloombergAPICommunicator {
 		}
 	}
 	
+	
 	/**
-	 * Method used to read a histCheck message. This determines if a
-	 * stock has enough data based on the start and end dates provided
-	 * by the user.
+	 * Helper method to read HistoricalCheck messages crafted by requestHistoricalPriceData()
+	 * @param event Event
+	 * @param stocks Stock []
+	 * @param startDateString String
+	 * @param pw PrintWriter
 	 */
-	private void readHistoricalCheckMessage(Event event, Stock [] stocks, 
-											String startDateString, PrintWriter pw) 
+	private void readHistoricalCheckMessage(Event event, String startDateString, PrintWriter pw) 
 	{
 		MessageIterator iter = event.messageIterator();
 		while (iter.hasNext()) {
@@ -584,11 +534,11 @@ public class BloombergAPICommunicator {
 			
 			//for every stock in this message
 			for (int i = 0; i < numberOfStocksInMessage; i++) {
-				//get the stock
+				//get the stock and its sequence number
 				Element singleStock = securityDataArray.getValueAsElement(i);
-				//get the sequence number which is the number we associate with that stock in the sequence
 				int sequenceNumber = singleStock.getElementAsInt32("sequenceNumber");
-				//the field data element has the information we need--whether the start date is valid
+				
+				//the field data element has the information we need -- whether the start date is valid
 				Element fieldData = singleStock.getElement("fieldData");
 				//convert the start date into a string
 				String startDate = fieldData.getElementAsDate("INTERVAL_START_VALUE_DATE").toString();
@@ -603,9 +553,9 @@ public class BloombergAPICommunicator {
 				//this stock does not have enough data in the bloomberg system
 				for (int j = 0; j < splitted.length; j++) {
 					if (!ourDates[j].contentEquals(splitted[j])) {
-						pw.println(stocks[sequenceNumber].ticker + " does not have enough data.");
+						pw.println(stockUniverse.getStocks()[sequenceNumber].ticker + " does not have enough data.");
 						pw.flush();
-						stocks[sequenceNumber].status = Stock.Status.NO_DATA;
+						stockUniverse.getStocks()[sequenceNumber].status = Stock.Status.NO_DATA;
 						break;
 					}
 				}
@@ -622,26 +572,36 @@ public class BloombergAPICommunicator {
 		}
 	}
 	
-	private void readHistoricalResponse(Event event, Stock [] stocks, BloombergAPICommunicator.HistoricalRequest request,
+	/**
+	 * Helper method to read numerous Historical Responses that are created by requestHistoricalPriceData().
+	 * @param event Event
+	 * @param stocks Stocks
+	 * @param request BloombergAPICommunicator.HistoricalRequest
+	 * @param startIndex int
+	 * @param pw PrintWriter
+	 * @throws FileNotFoundException
+	 */
+	private void readHistoricalResponse(Event event, HistoricalRequest request,
 			int startIndex, PrintWriter pw) throws FileNotFoundException {
-		//OVERALL MESSAGE : HistoricalDataResponse
-		//----> securityData
-		//----> ----> sequenceNumber
-		//----> ----> fieldData []
-		//----> ----> ----> fieldData values
-
-		MessageIterator msgIter = event.messageIterator();
 		
+		/* HistoricalDataResponse
+		 * ---> securityData
+		 * ---> ---> sequenceNumber
+		 * ---> ---> fieldData []
+		 * ---> ---> ---> fieldData values
+		 */
+		MessageIterator msgIter = event.messageIterator();
 		while (msgIter.hasNext()) {
-			
 			Message message = msgIter.next();
-		//pw.print(message);
-		//	pw.flush();
+			pw.print(message);
+			pw.flush();
+			
 			Element messageAsElement = message.asElement();
 			Element securityDataElement = messageAsElement.getElement("securityData");
 			int sequenceNumber = securityDataElement.getElementAsInt32("sequenceNumber");
+			
 			sequenceNumber += startIndex;
-			Stock stock = stocks[sequenceNumber];
+			Stock stock = stockUniverse.getStocks()[sequenceNumber];
 			Element fieldDataArray = securityDataElement.getElement("fieldData");
 			int numberOfValues = fieldDataArray.numValues();
 			switch (request) {
@@ -693,9 +653,12 @@ public class BloombergAPICommunicator {
 				}
 			}
 		}
-		
 	}
 	
+	/**
+	 * Gets the internal stock universe.
+	 * @return StockUniverse
+	 */
 	public StockUniverse getStockUniverse(){
 		return this.stockUniverse;
 	}
