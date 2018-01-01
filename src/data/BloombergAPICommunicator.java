@@ -48,6 +48,21 @@ public class BloombergAPICommunicator {
 		MOV_AVG_10D		// 10-day moving average
 	}
 	
+	/* The following link shows the industry sectors that bloomberg has defined
+	https://www.bloomberg.com/research/sectorandindustry/overview/sectorlanding.asp*/
+	public enum Sector {
+		CONSUMER_DISCRETIONARY, 
+		CONSUMER_STAPLES, 
+		ENERGY, 
+		FINANCIALS, 
+		HEALTHCARE, 
+		INDUSTRIALS, 
+		INFORMATION_TECHNOLOGY, 
+		MATERIALS,
+		TELECOM,
+		UTILITIES
+	}
+	
 	//private member variables to maintain communication with Bloomberg
 	private Session session;
 	private Service refDataService;

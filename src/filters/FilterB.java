@@ -90,9 +90,9 @@ public class FilterB extends Filter {
 			orderList = new Order[buyList.size() + sellList.size()];
 			int i = 0;
 			for (Stock s: buyList)
-				orderList[i++] = new Order(Order.Action.BUY, 0 , s.ticker, new String() , 0.0, new Date());
+				orderList[i++] = new Order(Order.Action.BUY, 0 , s.ticker, 0.0, new Date());
 			for (Stock s: sellList)
-				orderList[i++] = new Order(Order.Action.SELL, 0 , s.ticker, new String() , 0.0, new Date());
+				orderList[i++] = new Order(Order.Action.SELL, 0 , s.ticker, 0.0, new Date());
 		}
 		catch (IOException e) {}
 	}

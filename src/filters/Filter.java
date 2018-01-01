@@ -73,10 +73,10 @@ abstract public class Filter {
 			@Override
 			public void run(StockUniverse stocks, PrintWriter pw, ExcelOutput excel) {
 				this.orderList = new Order[4];
-				orderList[0] = new Order(Order.Action.BUY, 100, "AAPL", "NYSE", 99.99, new Date(System.currentTimeMillis()));
-				orderList[1] = new Order(Order.Action.BUY, 200, "XXX", "NYSE", 99.99, new Date(System.currentTimeMillis()));
-				orderList[2] = new Order(Order.Action.SELL, 300, "YYY", "NYSE", 99.99, new Date(System.currentTimeMillis()));
-				orderList[3] = new Order(Order.Action.SELL, 400, "ZZZ", "NYSE", 99.99, new Date(System.currentTimeMillis()));
+				orderList[0] = new Order(Order.Action.BUY, 100, "AAPL", 99.99, new Date(System.currentTimeMillis()));
+				orderList[1] = new Order(Order.Action.BUY, 200, "XXX", 99.99, new Date(System.currentTimeMillis()));
+				orderList[2] = new Order(Order.Action.SELL, 300, "YYY", 99.99, new Date(System.currentTimeMillis()));
+				orderList[3] = new Order(Order.Action.SELL, 400, "ZZZ", 99.99, new Date(System.currentTimeMillis()));
 			}
 		};
 		testFilter.run(null, null, null);
