@@ -3,7 +3,7 @@ package assetAllocater;
 import java.util.ArrayList;
 
 import filters.Order;
-import stockGenie.BloombergAPICommunicator;
+import data.BloombergAPICommunicator;
 
 public abstract class Allocator {
 	
